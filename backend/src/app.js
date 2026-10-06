@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config/env.js';
-import { taskRouter } from './routes/taskRoute.js';
+import { transactionRouter } from './routes/transactionRoute.js';
 
 const app = express();
 
@@ -12,7 +12,7 @@ app.use(express.json());
 
 
 app.get('/', (_request, response) => {
-  response.status(200).json({ message: 'Appli de taches !' });
+  response.status(200).json({ message: 'API BudgetFlow' });
 });
 
 app.get('/api/health', (_request, response) => {
@@ -20,6 +20,6 @@ app.get('/api/health', (_request, response) => {
 });
 
 
-app.use('/api/tasks', taskRouter);
+app.use('/api/transactions', transactionRouter);
 
 export default app;
