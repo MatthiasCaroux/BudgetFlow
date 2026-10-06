@@ -8,7 +8,7 @@ export async function register(req, res) {
     }
     const user = await authService.registerUser(req.body.email, req.body.password);
     if (!user) {
-        return res.status(409).json({ error: {code: 'EMAIL_ALREADY_EXISTS', message: 'Email already exists'} });
+        return res.status(409).json({ error: {code: 'EMAIL_ALREADY_USED', message: 'Cet email est déjà utilisé'} });
     }
     const token = authService.createToken(user._id);
     res.status(201).json({ user:{ id: user._id, email: user.email }, token });
