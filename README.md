@@ -1,182 +1,195 @@
 # BudgetFlow
 
-Application web de suivi de budget personnel : chaque utilisateur enregistre ses revenus et ses dépenses **fictifs**, et les retrouve à chaque connexion. Aucun accès bancaire, aucune transaction réelle.
-
-Projet du module **Full Stack JS** (EFREI, Master 1), **sujet C – BudgetFlow**.
+BudgetFlow est une petite application de suivi de budget : on crée un compte, on se connecte, puis on enregistre ses revenus et ses dépenses (fictifs). Chaque utilisateur ne voit que ses propres transactions. L'interface affiche aussi le total des revenus, des dépenses et le solde.
 
 ## Sommaire
 
-1. [Fonctionnalités](#fonctionnalités)
-2. [Stack et versions](#stack-et-versions)
-3. [Installation](#installation)
-4. [Lancer l'application](#lancer-lapplication)
-5. [Tests et build](#tests-et-build)
-6. [API](#api)
-7. [Architecture](#architecture)
-8. [Choix techniques](#choix-techniques)
-9. [Outillage : Vite, Babel, Webpack et CI](#outillage--vite-babel-webpack-et-ci)
-10. [Limites connues](#limites-connues)
-11. [Équipe](#équipe)
+1. [Stack et versions](#1-stack-et-versions)
+2. [Prérequis](#2-prérequis)
+3. [Installation et fichier .env](#3-installation-et-fichier-env)
+4. [Lancer le projet](#4-lancer-le-projet)
+5. [Les routes de l'API](#5-les-routes-de-lapi)
+6. [Les pages du front](#6-les-pages-du-front)
+7. [Tests, lint et build](#7-tests-lint-et-build)
+8. [Architecture](#8-architecture)
+9. [Choix techniques](#9-choix-techniques)
+10. [Vite, Babel et Webpack](#10-vite-babel-et-webpack)
+11. [Les tests dans une CI](#11-les-tests-dans-une-ci)
+12. [Limites connues](#12-limites-connues)
 
-## Fonctionnalités
+## 1. Stack et versions
 
-- **Compte utilisateur** : inscription, connexion, déconnexion. Mot de passe haché avec bcrypt, session par JWT.
-- **Transactions** : lister, ajouter, consulter, modifier et supprimer ses transactions (libellé, montant, type revenu/dépense, date, description facultative).
-- **Résumé** : total des revenus, des dépenses et solde du compte.
-- **Données privées** : un utilisateur ne voit et ne modifie que ses propres transactions, y compris si quelqu'un appelle l'API directement sans passer par l'interface.
-- **Session sécurisée** : déconnexion automatique à l'expiration du token, redirection vers la connexion pour les pages privées, retour à la page demandée après connexion.
+Le projet est un monorepo avec des workspaces npm : `backend` et `frontend` partagent un seul `package-lock.json` à la racine.
 
-## Stack et versions
+| Partie | Outil | Version |
+| --- | --- | --- |
+| Runtime | Node.js | 22 ou 24 (minimum 20.19) |
+| Base de données | MongoDB | 7 (image Docker `mongo:7`) |
+| Back | Express | 5.2 |
+| Back | Mongoose | 9.11 |
+| Back | jsonwebtoken / bcrypt | 9.0 / 6.0 |
+| Back | helmet, cors | 8.3, 2.8 |
+| Back | swagger-jsdoc / swagger-ui-express | 6.3 / 5.0 |
+| Front | React / React DOM | 19.3 |
+| Front | React Router | 7.18 |
+| Front | Vite (+ @vitejs/plugin-react) | 7.3 (plugin 5.2) |
+| Tests | Jest + Supertest | 30.5 / 7.1 |
+| Tests | mongodb-memory-server | 11.3 |
 
-| Couche | Technologies |
-|---|---|
-| Environnement | Node.js 24 (testé avec 24.21), npm 11 |
-| Front-end | React 19, React Router 7, Vite 7 |
-| Back-end | Express 5, Mongoose 9 |
-| Base de données | MongoDB 7 |
-| Sécurité | bcrypt 6, jsonwebtoken 9, helmet 8, cors |
-| Tests | Jest 30, Supertest 7, mongodb-memory-server 11 |
-| Documentation API | Swagger / OpenAPI 3 (swagger-jsdoc, swagger-ui-express) |
+Les versions sont celles installées par `npm ci` avec le `package-lock.json` actuel.
 
-Le dépôt est un **monorepo npm** (workspaces) : `frontend/` et `backend/` sont deux projets indépendants, installés et lancés depuis la racine.
+Pourquoi Node 20.19 minimum : c'est ce que demandent Mongoose 9, Vite 7 et mongodb-memory-server. Les images Docker utilisent Node 24.
 
-## Installation
+## 2. Prérequis
 
-### Prérequis
+- Node.js 20.19 ou plus récent, avec npm (`node -v` pour vérifier)
+- Docker Desktop (ou Docker Engine + Compose), pour lancer MongoDB sans l'installer
+- Git
 
-- [Node.js](https://nodejs.org/) 24 ou plus récent, avec npm
-- MongoDB 7, en local ou avec [Docker](https://www.docker.com/)
+Si vous n'avez pas Docker, un MongoDB installé en local marche aussi, il doit juste écouter sur `localhost:27017`.
 
-### Étapes
+## 3. Installation et fichier .env
 
 ```bash
 git clone https://github.com/MatthiasCaroux/BudgetFlow.git
 cd BudgetFlow
 npm install
+```
+
+Un seul `npm install` à la racine suffit, il installe les dépendances du back et du front.
+
+Ensuite il faut créer le fichier `backend/.env` à partir de l'exemple :
+
+```bash
+# macOS / Linux / Git Bash
 cp backend/.env.example backend/.env
+
+# Windows (PowerShell)
+Copy-Item backend/.env.example backend/.env
 ```
 
-`npm install` à la racine installe les dépendances du front et du back en une seule fois.
+Contenu du fichier :
 
-Ouvrez ensuite `backend/.env` et remplacez au minimum `JWT_SECRET` par une longue chaîne aléatoire, par exemple générée avec :
+| Variable | Exemple | À quoi elle sert |
+| --- | --- | --- |
+| `PORT` | `3000` | Port de l'API Express |
+| `MONGO_URI` | `mongodb://localhost:27017/budgetflow` | Adresse de la base MongoDB |
+| `JWT_SECRET` | une longue chaîne aléatoire | Clé qui signe les tokens JWT |
+| `JWT_EXPIRES_IN` | `1h` | Durée de validité d'un token |
+| `CORS_ORIGIN` | `http://localhost:5173` | Seule origine autorisée à appeler l'API depuis un navigateur |
+
+Il faut changer `JWT_SECRET`. Pour générer une valeur :
 
 ```bash
-openssl rand -hex 32
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-### Variables d'environnement (`backend/.env`)
+Le fichier `.env` est dans le `.gitignore`, il ne doit jamais être commité. Si `JWT_SECRET` ou `MONGO_URI` manque, l'API refuse de démarrer et affiche un message dans le terminal.
 
-| Variable | Rôle | Valeur d'exemple |
-|---|---|---|
-| `PORT` | Port de l'API | `3000` |
-| `MONGO_URI` | Adresse de la base MongoDB | `mongodb://localhost:27017/budgetflow` |
-| `JWT_SECRET` | Clé secrète de signature des tokens. **Ne jamais la partager ni la commiter** | une chaîne aléatoire de 64 caractères |
-| `JWT_EXPIRES_IN` | Durée de validité d'un token | `1h` |
-| `CORS_ORIGIN` | Adresse du front autorisée à appeler l'API depuis un navigateur | `http://localhost:5173` |
+## 4. Lancer le projet
 
-Le fichier `backend/.env` est ignoré par Git. Seul `backend/.env.example`, sans aucun secret, est versionné. L'API refuse de démarrer si `JWT_SECRET` ou `MONGO_URI` est absent.
+### Mode développement (celui qu'on utilise au quotidien)
 
-### Lancer MongoDB
-
-Avec Docker, depuis la racine du projet :
+Trois choses tournent en même temps : MongoDB, l'API et le front.
 
 ```bash
+# 1. MongoDB dans Docker (à faire une fois, le conteneur reste lancé)
 docker compose up -d mongo
-```
 
-Le conteneur redémarre automatiquement avec Docker, et ses données sont conservées dans un volume.
-
-Sans Docker, installez [MongoDB Community](https://www.mongodb.com/try/download/community) et vérifiez qu'il écoute sur le port 27017. Les données sont conservées par MongoDB : elles restent disponibles après un redémarrage de l'API.
-
-## Lancer l'application
-
-Depuis la racine du projet :
-
-```bash
+# 2. L'API et le front en même temps
 npm run dev
 ```
 
-Cette commande lance l'API et le front en même temps, avec rechargement automatique à chaque modification.
+`npm run dev` lance les deux avec `concurrently` (logs en bleu pour le back, en vert pour le front). Les deux redémarrent tout seuls quand on modifie un fichier.
 
-| Service | Adresse |
-|---|---|
-| Application (front) | http://localhost:5173 |
-| API | http://localhost:3000 |
-| Documentation Swagger | http://localhost:3000/api-docs |
-| Santé de l'API | http://localhost:3000/api/health |
-
-Si le port 5173 est déjà utilisé, Vite prend automatiquement le suivant (5174…) et l'affiche dans le terminal.
-
-### Application complète dans Docker
-
-Pour lancer MongoDB, l'API et le front sans rien installer d'autre que Docker :
+On peut aussi les lancer séparément, dans deux terminaux :
 
 ```bash
-cp backend/.env.example backend/.env   # puis modifier JWT_SECRET
+npm run dev --workspace backend    # API seule
+npm run dev --workspace frontend   # front seul
+```
+
+Adresses :
+
+| Quoi | URL |
+| --- | --- |
+| Application React | http://localhost:5173 |
+| API | http://localhost:3000 |
+| Vérifier que l'API répond | http://localhost:3000/api/health |
+| Documentation Swagger | http://localhost:3000/api-docs |
+| MongoDB | `mongodb://localhost:27017/budgetflow` |
+
+En dev, le front appelle `/api/...` sur son propre port (5173) et Vite redirige ces requêtes vers `http://localhost:3000` (proxy configuré dans `frontend/vite.config.js`). C'est pour ça que le front n'a pas besoin de connaître l'URL de l'API.
+
+Pour arrêter MongoDB : `docker compose stop mongo`. Les données sont gardées dans le volume Docker `mongo-data`, donc elles sont toujours là au prochain lancement. `docker compose down -v` supprime le volume et donc toutes les données.
+
+### Tout dans Docker (proche de la version rendue)
+
+```bash
 docker compose up -d --build
 ```
 
-| Service | Adresse |
-|---|---|
-| Application (front servi par nginx) | http://localhost:8080 |
+Ça lance trois conteneurs : MongoDB, l'API (Node 24) et le front buildé servi par nginx.
+
+| Quoi | URL |
+| --- | --- |
+| Application | http://localhost:8080 |
 | API | http://localhost:3000 |
-| Documentation Swagger | http://localhost:3000/api-docs |
+| Swagger | http://localhost:3000/api-docs |
 
-Dans ce mode, `MONGO_URI`, `PORT` et `CORS_ORIGIN` sont fixés par `docker-compose.yml` ; seuls `JWT_SECRET` et `JWT_EXPIRES_IN` sont lus dans `backend/.env`. Pour tout arrêter : `docker compose down`.
+nginx sert les fichiers du build React et transmet les requêtes `/api` au conteneur de l'API, comme le proxy de Vite en dev. Le conteneur de l'API lit `JWT_SECRET` et `JWT_EXPIRES_IN` dans `backend/.env`, il faut donc avoir créé ce fichier avant. `PORT`, `MONGO_URI` et `CORS_ORIGIN` sont redéfinis dans `docker-compose.yml`.
 
-Autres commandes :
+Pour tout arrêter : `docker compose down`.
 
-| Commande (à la racine) | Effet |
-|---|---|
-| `npm start` | Lance uniquement l'API, sans rechargement automatique |
-| `npm run dev --workspace backend` | Lance uniquement l'API, avec rechargement |
-| `npm run dev --workspace frontend` | Lance uniquement le front |
+## 5. Les routes de l'API
 
-## Tests et build
+Toutes les réponses sont en JSON. Les routes `/api/transactions` demandent un token dans l'en-tête :
 
-```bash
-npm test                  # tous les tests (135)
-npm run test:unit         # tests unitaires : fonctions isolées, sans base de données
-npm run test:functional   # tests fonctionnels : appels HTTP sur l'API, MongoDB en mémoire
+```
+Authorization: Bearer <token>
 ```
 
-**Tests unitaires** (`backend/test/unit/`) : validateurs (auth et transactions), vérification des dates, classe `AppError` et gestionnaire d'erreurs, testés sans serveur ni base.
+Le token est renvoyé par `register` et `login`. La doc complète, avec les schémas et un bouton "Authorize" pour coller le token, est sur `/api-docs`.
 
-**Tests fonctionnels** (`backend/test/functional/`), avec Jest + Supertest :
+### Vue d'ensemble
 
-| Fichier | Ce qui est vérifié |
-|---|---|
-| `app.test.js` | La route de santé renvoie exactement `{"status":"ok"}` |
-| `auth.test.js` | Inscription, connexion, email déjà utilisé (409), entrées invalides (400), mauvais identifiants (401), mot de passe stocké uniquement haché |
-| `transactions.test.js` | Parcours CRUD complet, toutes les validations (montant décimal, nul ou négatif, date impossible, champ inconnu, `ownerId` envoyé par le client…), identifiants mal formés (400) ou absents (404), tri et filtre |
-| `isolation.test.js` | Accès sans token, avec un token falsifié ou expiré (401) ; un compte B ne peut ni voir, ni modifier, ni supprimer les transactions d'un compte A (404) |
+| Méthode | Route | Auth | Succès | Rôle |
+| --- | --- | --- | --- | --- |
+| GET | `/api/health` | non | 200 | Vérifie que l'API tourne |
+| POST | `/api/auth/register` | non | 201 | Crée un compte et renvoie un token |
+| POST | `/api/auth/login` | non | 200 | Connecte et renvoie un token |
+| GET | `/api/transactions` | oui | 200 | Liste les transactions de l'utilisateur |
+| POST | `/api/transactions` | oui | 201 | Crée une transaction |
+| GET | `/api/transactions/:id` | oui | 200 | Détail d'une transaction |
+| PATCH | `/api/transactions/:id` | oui | 200 | Modifie une partie d'une transaction |
+| DELETE | `/api/transactions/:id` | oui | 204 | Supprime une transaction (sans body) |
 
-Les tests fonctionnels utilisent une **base MongoDB en mémoire**, créée pour l'occasion et vidée entre chaque test : ils ne touchent jamais à la base de développement. Le premier lancement télécharge cette base de test (environ 140 Mo), les suivants sont immédiats.
+### Authentification
 
-```bash
-npm run build
+`POST /api/auth/register` et `POST /api/auth/login` prennent le même corps :
+
+```json
+{ "email": "romain@exemple.com", "password": "motdepasse123" }
 ```
 
-Produit la version optimisée du front dans `frontend/dist/`. On peut la prévisualiser avec `npm run preview --workspace frontend`.
+Réponse (201 pour register, 200 pour login) :
 
-## API
+```json
+{
+  "user": { "id": "66f1c2a4e1b2c3d4e5f60719", "email": "romain@exemple.com" },
+  "token": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
 
-Toutes les routes commencent par `/api` et échangent du JSON. La documentation complète et testable (schémas, exemples, bouton **Authorize** pour coller un token) est disponible sur **http://localhost:3000/api-docs**.
+Règles :
+- l'email doit être valide, il est enregistré en minuscules (`Romain@Exemple.com` et `romain@exemple.com` sont le même compte) ;
+- le mot de passe fait au moins 8 caractères. Il est haché avec bcrypt, on ne stocke jamais le mot de passe en clair ;
+- register avec un email déjà pris donne 409 `EMAIL_ALREADY_USED` ;
+- login avec un mauvais email ou un mauvais mot de passe donne 401 avec le même message dans les deux cas, pour ne pas révéler quels emails ont un compte.
 
-| Méthode | Route | Accès | Succès |
-|---|---|---|---|
-| `GET` | `/api/health` | public | `200` `{"status":"ok"}` |
-| `POST` | `/api/auth/register` | public | `201` `{ user: { id, email }, token }` |
-| `POST` | `/api/auth/login` | public | `200` `{ user: { id, email }, token }` |
-| `GET` | `/api/transactions` | JWT | `200` `{ items: [...] }` |
-| `POST` | `/api/transactions` | JWT | `201` transaction créée |
-| `GET` | `/api/transactions/:id` | JWT | `200` transaction |
-| `PATCH` | `/api/transactions/:id` | JWT | `200` transaction modifiée |
-| `DELETE` | `/api/transactions/:id` | JWT | `204` sans corps |
+### Transactions
 
-Les routes « JWT » attendent l'en-tête `Authorization: Bearer <token>`.
-
-Exemple de transaction :
+Une transaction ressemble à ça :
 
 ```json
 {
@@ -185,11 +198,41 @@ Exemple de transaction :
   "amount": 12345,
   "type": "expense",
   "date": "2026-10-05",
-  "description": "Supermarché"
+  "description": "",
+  "ownerId": "66f1c2a4e1b2c3d4e5f60719",
+  "createdAt": "2026-10-05T14:02:11.000Z",
+  "updatedAt": "2026-10-05T14:02:11.000Z"
 }
 ```
 
-`amount` est en **centimes** : `12345` correspond à 123,45 €.
+| Champ | Règle |
+| --- | --- |
+| `label` | texte, 1 à 120 caractères (les espaces au début et à la fin sont retirés) |
+| `amount` | entier en centimes, strictement positif : `12345` = 123,45 € |
+| `type` | `"income"` (revenu) ou `"expense"` (dépense) |
+| `date` | texte `AAAA-MM-JJ`, et la date doit exister |
+| `description` | facultatif, texte de 1000 caractères maximum (ajouté en plus du contrat) |
+
+Le montant est toujours positif, c'est `type` qui dit si l'argent rentre ou sort.
+
+**GET /api/transactions** renvoie `{ "items": [...] }`, trié de la date la plus récente à la plus ancienne. Si l'utilisateur n'a rien, on reçoit `{ "items": [] }`. On peut filtrer avec `?type=income` ou `?type=expense` (une autre valeur donne 400).
+
+**POST /api/transactions** demande `label`, `amount`, `type` et `date`. Il renvoie 201 et la transaction créée. Le `ownerId` est pris dans le token, jamais dans le corps.
+
+**GET /api/transactions/:id** renvoie la transaction si elle appartient à l'utilisateur connecté.
+
+**PATCH /api/transactions/:id** modifie seulement les champs envoyés. Par exemple `{ "amount": 9900 }` change juste le montant. Un corps vide est refusé (400).
+
+**DELETE /api/transactions/:id** renvoie 204 sans corps.
+
+Ce qui est refusé avec un 400 `INVALID_INPUT` :
+- `amount` à `12.34`, `0`, `-500` ou `"12"` (pas un entier positif) ;
+- une date comme `2026-02-30` (bon format mais n'existe pas) ou `05/10/2026` ;
+- un champ `id`, `_id`, `ownerId` ou n'importe quel champ inconnu dans un POST ou un PATCH ;
+- un `:id` qui n'a pas le format d'un identifiant MongoDB (par exemple `/api/transactions/abc`) ;
+- un JSON mal formé ou trop gros (plus de 10 ko).
+
+### Format des erreurs
 
 Toutes les erreurs ont la même forme :
 
@@ -197,120 +240,258 @@ Toutes les erreurs ont la même forme :
 { "error": { "code": "INVALID_INPUT", "message": "Le montant doit être un nombre entier de centimes strictement positif" } }
 ```
 
-| Code HTTP | `error.code` | Cas |
-|---|---|---|
-| 400 | `INVALID_INPUT` | Corps invalide, champ interdit (`id`, `ownerId`, champ inconnu), PATCH vide, identifiant mal formé |
-| 401 | `UNAUTHORIZED` | Token absent, invalide ou expiré ; identifiants de connexion incorrects |
-| 404 | `NOT_FOUND` | Transaction inexistante **ou appartenant à un autre compte** |
-| 409 | `EMAIL_ALREADY_USED` | Email déjà utilisé à l'inscription |
+| Code HTTP | `code` | Quand |
+| --- | --- | --- |
+| 400 | `INVALID_INPUT` | données invalides (voir la liste au-dessus) |
+| 401 | `UNAUTHORIZED` | pas de token, token mal formé, falsifié ou expiré, mauvais identifiants au login |
+| 404 | `NOT_FOUND` | transaction qui n'existe pas ou qui appartient à un autre compte, route inconnue |
+| 409 | `EMAIL_ALREADY_USED` | email déjà utilisé à l'inscription |
+| 500 | `INTERNAL_ERROR` | erreur imprévue (le détail reste dans les logs du serveur, pas dans la réponse) |
 
-## Architecture
+### Essayer avec curl
 
-```
-Navigateur (React, port 5173)
-   │  fetch('/api/...')  — le proxy Vite redirige /api vers le port 3000
-   ▼
-API Express (port 3000)
-   │  route → requireAuth → validateur → contrôleur → service → modèle
-   ▼
-MongoDB (port 27017)
-```
+```bash
+# Créer un compte et récupérer le token
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"romain@exemple.com","password":"motdepasse123"}'
 
-Une requête métier traverse toujours les mêmes étapes :
+# Copier le token de la réponse dans une variable
+TOKEN=colle-le-token-ici
 
-| Étape | Fichier | Rôle |
-|---|---|---|
-| Route | `routes/transactionRoute.js` | Associe une méthode et un chemin à un contrôleur |
-| Authentification | `middlewares/requireAuth.js` | Vérifie le JWT, place l'id de l'utilisateur dans `req.userId`, sinon 401 |
-| Validation | `validators/transactionValidator.js` | Vérifie le corps de la requête, sinon 400 |
-| Contrôleur | `controllers/transactionController.js` | Lit la requête, appelle le service, choisit le code HTTP |
-| Service | `services/transactionService.js` | Accès aux données, toujours filtré par propriétaire |
-| Modèle | `models/Transaction.js` | Schéma Mongoose |
-| Erreurs | `errors/AppError.js`, `middlewares/errorHandler.js` | Les erreurs prévues sont des `AppError` (400, 401, 404, 409) ; le gestionnaire les renvoie au format `{ error }`, et transforme toute erreur imprévue en 500 sans détail technique |
+# Créer une dépense de 123,45 €
+curl -X POST http://localhost:3000/api/transactions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"label":"Courses","amount":12345,"type":"expense","date":"2026-10-05"}'
 
-### Back-end (`backend/`)
-
-```
-src/
-├── app.js            Application Express, importable sans ouvrir de port (tests)
-├── server.js         Connexion à MongoDB et démarrage du serveur
-├── config/           Variables d'environnement, connexion MongoDB, Swagger
-├── routes/           authRoute, transactionRoute
-├── middlewares/      requireAuth, errorHandler
-├── errors/           AppError et raccourcis (invalidInput, unauthorized, notFound, conflict)
-├── validators/       authValidator, transactionValidator
-├── controllers/      authController, transactionController
-├── services/         authService, transactionService
-├── models/           User, Transaction
-└── utils/            dates (vérification des dates réelles)
-test/
-├── unit/             Tests unitaires (validateurs, dates, erreurs)
-├── functional/       Tests de l'API par HTTP (Supertest + MongoDB en mémoire)
-└── helpers/          Base de test en mémoire, création d'utilisateurs, variables de test
-Dockerfile            Image de l'API
+# Lister ses transactions
+curl http://localhost:3000/api/transactions -H "Authorization: Bearer $TOKEN"
 ```
 
-### Front-end (`frontend/`)
+Sous Windows, le plus simple est d'utiliser Swagger (`/api-docs`) ou Git Bash.
+
+## 6. Les pages du front
+
+| URL | Page | Accès |
+| --- | --- | --- |
+| `/` | Accueil, présentation de l'appli | visiteurs (un utilisateur connecté est envoyé sur `/transactions`) |
+| `/register` | Création de compte | visiteurs seulement |
+| `/login` | Connexion | visiteurs seulement |
+| `/transactions` | Liste, totaux (revenus, dépenses, solde) et ajout d'une transaction | connecté |
+| `/transactions/:id` | Détail, modification et suppression (avec confirmation) | connecté |
+| autre | Page 404 | tout le monde |
+
+Si on ouvre une page protégée sans être connecté, on est redirigé vers `/login`, puis renvoyé sur la page demandée après la connexion.
+
+Les montants sont saisis en euros (`123,45` ou `123.45`) et convertis en centimes avant l'envoi. L'affichage repasse en euros au format français (`123,45 €`).
+
+## 7. Tests, lint et build
+
+Toutes les commandes se lancent depuis la racine du projet.
+
+### Tests (back)
+
+```bash
+npm test                  # tous les tests
+npm run test:unit         # tests unitaires seulement
+npm run test:functional   # tests fonctionnels seulement
+```
+
+- Les tests unitaires (`backend/test/unit`) testent des fonctions seules, sans base de données : validation des transactions et des emails / mots de passe, vérification des dates, `AppError`, middleware d'erreurs.
+- Les tests fonctionnels (`backend/test/functional`) envoient de vraies requêtes HTTP à l'API avec Supertest : inscription et connexion, CRUD des transactions, montants et dates invalides, et isolation entre deux comptes (le compte B reçoit 404 sur les transactions du compte A).
+
+Les tests fonctionnels utilisent une base MongoDB en mémoire (mongodb-memory-server), donc ils ne touchent pas à la base de dev et Docker n'a pas besoin d'être lancé. Par contre, au premier lancement, la librairie télécharge le binaire MongoDB (environ 140 Mo) : il faut une connexion internet et ça peut prendre une minute.
+
+Le secret JWT utilisé pendant les tests est défini dans `backend/test/helpers/env.js`, ce n'est jamais celui du `.env`.
+
+### Lint
+
+```bash
+npm run lint
+```
+
+Lance ESLint sur le back et sur le front.
+
+### Build du front
+
+```bash
+npm run build
+```
+
+Le résultat va dans `frontend/dist/` (un `index.html`, un fichier JS et un fichier CSS minifiés). Pour voir ce build en local :
+
+```bash
+npm run preview --workspace frontend
+```
+
+Le back n'a pas d'étape de build : Node exécute directement les fichiers de `backend/src`.
+
+### Lancer l'API sans rechargement automatique
+
+```bash
+npm start
+```
+
+## 8. Architecture
 
 ```
-src/
-├── main.jsx          Point d'entrée : routeur et fournisseur de session
-├── App.jsx           Déclaration des routes (publiques, visiteurs, protégées)
-├── api/              client (appel unique à l'API, gestion des erreurs et du 401), auth, transactions
-├── context/          AuthContext : session, connexion, déconnexion, expiration
-├── components/       NavBar, ProtectedRoute, GuestRoute, TransactionModal, PasswordInput, messages
-├── pages/            Accueil, Connexion, Inscription, Transactions, Détail, 404
-├── hooks/            usePageTitle
-└── utils/            money (euros ↔ centimes), dates
-Dockerfile, nginx.conf   Image de production du front, servie par nginx
+BudgetFlow/
+├── backend/
+│   ├── src/
+│   │   ├── server.js            démarrage : vérifie le .env, connexion MongoDB, écoute du port
+│   │   ├── app.js               configuration Express : middlewares, routes, gestion des erreurs
+│   │   ├── config/              lecture du .env, connexion MongoDB, définition Swagger
+│   │   ├── routes/              URLs et méthodes HTTP (+ commentaires Swagger)
+│   │   ├── middlewares/         requireAuth (vérifie le JWT), errorHandler
+│   │   ├── controllers/         lit la requête, appelle le validator puis le service, choisit le code HTTP
+│   │   ├── validators/          règles sur les données reçues
+│   │   ├── services/            logique métier et accès à la base
+│   │   ├── models/              schémas Mongoose (User, Transaction)
+│   │   ├── errors/              AppError et raccourcis (invalidInput, notFound...)
+│   │   └── utils/               vérification des dates
+│   ├── test/
+│   │   ├── unit/
+│   │   ├── functional/
+│   │   └── helpers/             base en mémoire, création d'un utilisateur de test
+│   ├── Dockerfile
+│   └── .env.example
+├── frontend/
+│   ├── src/
+│   │   ├── main.jsx             point d'entrée React
+│   │   ├── App.jsx              déclaration des routes
+│   │   ├── api/                 appels à l'API (client.js + un fichier par ressource)
+│   │   ├── context/             AuthContext : session, login, logout
+│   │   ├── components/          layout, routes protégées, formulaire, messages
+│   │   ├── pages/               une page par URL
+│   │   ├── hooks/               titre de l'onglet
+│   │   └── utils/               conversion euros/centimes, format des dates
+│   ├── vite.config.js
+│   ├── nginx.conf               config du conteneur front
+│   └── Dockerfile
+├── docker-compose.yml
+└── package.json                 workspaces et scripts communs
 ```
 
-| Page | Accès |
-|---|---|
-| `/` | Accueil pour les visiteurs ; redirige vers `/transactions` si l'utilisateur est connecté |
-| `/login`, `/register` | Visiteurs uniquement ; un utilisateur connecté est redirigé vers ses transactions |
-| `/transactions`, `/transactions/:id` | Utilisateurs connectés uniquement ; sinon redirection vers `/login` |
+### Le trajet d'une requête dans le back
 
-## Choix techniques
+Exemple avec `POST /api/transactions` :
 
-**Montants en centimes entiers.** En JavaScript, `0.1 + 0.2` vaut `0.30000000000000004`. L'API ne manipule donc que des entiers (`12345` pour 123,45 €), et refuse les décimales. La conversion euros ↔ centimes est faite uniquement dans l'interface (`utils/money.js`), en découpant le texte saisi plutôt qu'en multipliant un nombre à virgule.
+1. `app.js` : `helmet` ajoute des en-têtes de sécurité, `cors` vérifie l'origine, `express.json` lit le corps (10 ko max).
+2. `routes/transactionRoute.js` : la route passe d'abord par `requireAuth`.
+3. `middlewares/requireAuth.js` : vérifie le token et range l'id de l'utilisateur dans `req.userId`. Sinon, 401.
+4. `controllers/transactionController.js` : appelle le validator. Si les données sont mauvaises, il lance une erreur 400.
+5. `validators/transactionValidator.js` : vérifie chaque champ et refuse les champs en trop.
+6. `services/transactionService.js` : crée la transaction avec `ownerId = req.userId`.
+7. `models/Transaction.js` : Mongoose enregistre dans MongoDB et transforme `_id` en `id` dans la réponse.
+8. Le controller renvoie 201 avec la transaction.
 
-**Dates stockées en texte `AAAA-MM-JJ`.** Un objet `Date` JavaScript est en UTC : selon le fuseau horaire, le 5 octobre peut devenir le 4. En texte, la date renvoyée est exactement celle reçue, et l'ordre alphabétique correspond à l'ordre chronologique. L'API vérifie que la date existe (le 30 février est refusé).
+Si une erreur est lancée à n'importe quelle étape, Express 5 l'envoie à `middlewares/errorHandler.js`, qui la met au format `{ error: { code, message } }`. Grâce à ça, les controllers n'ont pas de `try/catch` : ils font juste `throw`.
 
-**Mots de passe.** Ils ne sont jamais stockés ni renvoyés : seul un hash bcrypt (coût 10, sel aléatoire) est enregistré. L'email est stocké en minuscules, il est donc insensible à la casse.
+On a séparé controllers, validators et services pour que chaque fichier ait un seul rôle. Les validators sont des fonctions simples, faciles à tester en unitaire sans lancer Express ni MongoDB.
 
-**JWT.** Le token contient uniquement l'id de l'utilisateur (`sub`), il est signé avec `JWT_SECRET` (algorithme HS256 imposé) et expire au bout d'une heure. Son contenu est lisible par tous (il est encodé, pas chiffré) : il ne contient donc aucune donnée sensible. Sans `JWT_SECRET`, impossible de fabriquer un token valide.
+### Côté front
 
-**Stockage du token dans le navigateur.** Le token est gardé dans `localStorage`, pour que la session survive au rechargement de la page. Contrepartie : un script malveillant injecté dans la page (faille XSS) pourrait le lire. Un cookie `httpOnly` serait plus sûr, mais demande de gérer la protection CSRF. Nous limitons le risque avec une expiration courte, une déconnexion automatique à l'expiration et à chaque réponse 401, et React qui échappe par défaut le contenu affiché.
+Tous les appels passent par `frontend/src/api/client.js`. Il ajoute l'en-tête `Authorization`, lit le JSON, et transforme les erreurs de l'API en `ApiError` avec `status`, `code` et `message`, que les pages affichent. Si l'API répond 401 alors qu'on avait envoyé un token, le client prévient `AuthContext`, qui déconnecte l'utilisateur.
 
-**Isolation des comptes.** Le propriétaire (`ownerId`) d'une transaction est toujours déduit du token vérifié, jamais du corps de la requête (un `ownerId` envoyé par le client est refusé). Chaque requête MongoDB filtre sur ce propriétaire : la transaction d'un autre compte est donc introuvable, et l'API répond **404**, exactement comme pour une transaction inexistante, sans révéler qu'elle existe.
+## 9. Choix techniques
 
-**Sécurité côté serveur, pas seulement dans React.** Les protections de l'interface (pages réservées, validation des formulaires) servent le confort de l'utilisateur. N'importe qui peut appeler l'API avec `curl` ou Postman sans passer par React : toutes les vérifications sont donc refaites dans Express.
+### Montants en centimes
 
-**Connexion.** Un email inconnu et un mauvais mot de passe donnent la même réponse (401, même message), pour ne pas révéler quels emails possèdent un compte.
+On stocke `12345` et pas `123.45`. Les nombres à virgule en JavaScript ne sont pas exacts (`0.1 + 0.2` donne `0.30000000000000004`), et sur des sommes d'argent ça finit par faire des centimes de différence. Avec des entiers, les additions sont exactes. Le serveur refuse tout montant qui n'est pas un entier.
 
-**Autres protections.** En-têtes de sécurité HTTP avec helmet, CORS limité à l'adresse du front, corps JSON limité à 10 ko, aucune trace d'erreur technique renvoyée au client.
+Côté front, la conversion euros vers centimes (`utils/money.js`) découpe le texte saisi au lieu de faire `valeur * 100`, parce que `1.15 * 100` donne `114.99999999999999`.
 
-## Outillage : Vite, Babel, Webpack et CI
+### Dates en texte "AAAA-MM-JJ"
 
-- **Vite** sert l'application en développement (démarrage instantané, rechargement à chaud) et produit le build de production. Son proxy redirige `/api` vers l'API : le front n'a pas besoin de connaître l'adresse du back.
-- **Babel** est un *transpileur* : il transforme le JSX et le JavaScript récent en code que tous les navigateurs comprennent. Vite utilise esbuild, un outil équivalent beaucoup plus rapide, pour ce même rôle.
-- **Webpack** est un *bundler* : il rassemble les nombreux fichiers d'une application en quelques fichiers optimisés. C'est l'outil historique, que Vite remplace ici (Vite s'appuie sur Rollup pour le build de production).
-- **Intégration continue.** Dans une chaîne CI/CD, chaque push déclencherait : `npm ci`, puis `npm run test:unit` (rapide), `npm run test:functional`, puis `npm run build` et la construction des images Docker. Le déploiement n'aurait lieu que si toutes les étapes réussissent. Les tests utilisant une base en mémoire, ils tournent sans aucune base de données à installer.
+Une transaction a une date de calendrier, pas une heure précise. Si on la stockait en `Date`, elle serait enregistrée en UTC : une dépense du 5 octobre saisie en France pourrait s'afficher le 4 selon le fuseau. En texte, la date reste exactement celle saisie. Bonus : avec ce format, l'ordre alphabétique est aussi l'ordre chronologique, donc le tri MongoDB marche directement.
 
-## Limites connues
+Le format seul ne suffit pas (`2026-02-30` le respecte), donc `utils/dates.js` reconstruit la date et vérifie qu'elle existe vraiment. Côté front, on découpe aussi la chaîne nous-mêmes au lieu de faire `new Date("2026-10-05")`, pour la même histoire de fuseau.
 
-- Pas de catégories, de budgets mensuels, de graphiques ni d'export CSV (bonus du sujet non réalisés à ce jour).
-- Le solde affiché est calculé dans l'interface à partir de la liste, et non par une route dédiée de l'API.
-- Pas de limitation du nombre de tentatives de connexion (protection contre la force brute).
-- Un token reste valable jusqu'à son expiration, même après une déconnexion : il n'existe pas de liste de révocation.
-- Pas de pagination : toutes les transactions du compte sont chargées en une fois.
-- Pas de modification de l'email, du mot de passe ni de suppression de compte.
-- Pas de linter (ESLint) configuré à ce jour.
+### Authentification par JWT
 
-## Équipe
+Au login, le serveur signe un token qui contient l'id de l'utilisateur (`sub`) et une date d'expiration (`exp`). Ensuite le client renvoie ce token à chaque requête. Le serveur n'a rien à stocker : il vérifie juste la signature avec `JWT_SECRET`. On n'accepte que l'algorithme HS256.
 
-| Membre | Contribution principale |
-|---|---|
-| Nabila | Comptes et sécurité : inscription, connexion, JWT, protection des routes, session côté React, tests d'authentification et d'isolation |
-| Matthias Caroux | Transactions : modèle, routes, interface de la liste et de l'ajout, Swagger |
+Un JWT est signé, pas chiffré : n'importe qui peut lire son contenu. On n'y met donc que l'id, rien de sensible.
+
+Expiration : le token dure `JWT_EXPIRES_IN` (1 heure par défaut). Après, l'API répond 401. Le front lit la date `exp` du token et déconnecte l'utilisateur automatiquement à ce moment-là, avec un message qui explique que la session a expiré. Il n'y a pas de refresh token : il faut se reconnecter.
+
+### Token stocké dans localStorage
+
+Le token et l'email sont gardés dans `localStorage`, ce qui permet de rester connecté après un rechargement de page ou dans un autre onglet. Au chargement, si le token est déjà expiré, il est supprimé.
+
+L'inconvénient : un script malveillant injecté dans la page (faille XSS) pourrait lire le token. React échappe le texte affiché par défaut, ce qui limite ce risque, mais ne le supprime pas. La solution plus sûre serait un cookie `httpOnly` (illisible en JavaScript), mais elle demande de gérer la protection CSRF. Pour la taille du projet on a gardé `localStorage`, plus simple à comprendre et à expliquer.
+
+### Isolation des comptes
+
+Toutes les requêtes sur les transactions filtrent par `ownerId`, qui vient du token et jamais du corps de la requête. Si A demande une transaction de B, la requête MongoDB ne trouve rien et on renvoie 404, comme si elle n'existait pas. On ne renvoie pas 403, pour ne même pas confirmer qu'un id existe.
+
+Les redirections du front vers `/login` sont du confort d'affichage. La vraie protection est sur le serveur (`requireAuth` + filtre `ownerId`) : même en appelant l'API directement avec curl, on ne peut pas accéder aux données d'un autre compte.
+
+### Gestion des erreurs centralisée
+
+Un seul middleware (`errorHandler.js`) construit toutes les réponses d'erreur. Les erreurs prévues sont des `AppError` (avec un statut et un code). Une erreur imprévue donne un 500 avec un message générique : on n'envoie jamais de trace de pile au client, elle reste dans la console du serveur.
+
+### Réponses sans `_id` ni `__v`
+
+Le `toJSON` du modèle Transaction transforme `_id` en `id` (texte) et retire `__v`, pour respecter le contrat de l'API.
+
+## 10. Vite, Babel et Webpack
+
+**Vite** est l'outil qu'on utilise pour le front. Il a deux rôles :
+- en dev (`npm run dev`), il sert les fichiers presque tels quels au navigateur, qui sait lire les modules ES (`import`/`export`). Il ne transforme que le fichier demandé, donc le démarrage est quasi instantané. Avec le plugin React, les modifications apparaissent sans recharger la page (Fast Refresh). Il fait aussi le proxy `/api` vers l'API ;
+- au build (`npm run build`), il regroupe et minifie tout le code dans quelques fichiers optimisés pour la production, dans `frontend/dist`.
+
+**Babel** est un transpileur : il transforme du code JavaScript en un autre code JavaScript. Il sert surtout à convertir le JSX (`<div>`) en appels de fonctions que le navigateur comprend, et à réécrire la syntaxe récente pour les vieux navigateurs. Dans notre projet on ne le configure pas nous-mêmes : le plugin `@vitejs/plugin-react` l'utilise en dev pour le Fast Refresh, et Vite s'appuie sur esbuild pour le reste des transformations.
+
+**Webpack** est un bundler plus ancien, qu'on retrouve dans beaucoup de projets existants (Create React App par exemple). Il fait le même travail de fond que Vite (regrouper les modules, gérer le CSS et les images, produire un build), mais il construit tout le bundle avant de démarrer, même en dev, et demande plus de configuration. On ne l'utilise pas dans ce projet : Vite démarre plus vite, se configure en quelques lignes, et c'est l'outil recommandé aujourd'hui pour un nouveau projet React.
+
+## 11. Les tests dans une CI
+
+Une CI (intégration continue) est un serveur qui relance automatiquement les vérifications à chaque push ou Pull Request. Dans notre projet, une PR ne devrait être fusionnée dans `develop` que si tout passe.
+
+L'ordre logique :
+
+1. `npm ci` : installation exacte à partir du `package-lock.json` ;
+2. `npm run lint` : erreurs de style et bugs simples, très rapide ;
+3. `npm run test:unit` : rapides, sans base de données ;
+4. `npm run test:functional` : plus lents, avec la base en mémoire ;
+5. `npm run build` : vérifie que le front compile.
+
+Si une étape échoue, la CI s'arrête et la PR est marquée en rouge. C'est comme ça qu'un test détecte une régression : si quelqu'un casse par exemple le filtre `ownerId`, le test d'isolation échoue avant que le code n'arrive dans `develop`.
+
+Exemple avec GitHub Actions (fichier `.github/workflows/ci.yml`, pas encore ajouté au dépôt) :
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run test:functional
+      - run: npm run build
+```
+
+Pas besoin de service MongoDB dans la CI, puisque les tests fonctionnels utilisent la base en mémoire.
+
+## 12. Limites connues
+
+- Pas de refresh token : au bout d'une heure il faut se reconnecter.
+- La déconnexion se fait seulement côté navigateur. Un token copié avant la déconnexion reste valable jusqu'à son expiration (il n'y a pas de liste de tokens révoqués).
+- Le token est dans `localStorage`, donc lisible en cas de faille XSS (voir la partie 9).
+- Pas de limite du nombre de tentatives de connexion : un mot de passe peut être testé en boucle.
+- Pas de pagination : `GET /api/transactions` renvoie toutes les transactions d'un coup.
+- Le seul filtre de la liste est `type`. Pas de filtre par date ni de catégories.
+- Le solde affiché est calculé dans le front à partir de la liste, il n'y a pas de route dédiée.
+- Pas de tests automatisés côté front, seulement des tests manuels dans le navigateur.
+- Pas de modification ni de suppression du compte utilisateur.
+- Une seule devise (€)
