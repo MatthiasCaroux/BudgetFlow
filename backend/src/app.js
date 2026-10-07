@@ -4,7 +4,8 @@ import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import { config } from './config/env.js';
 import { swaggerSpec } from './config/swagger.js';
-import { taskRouter } from './routes/taskRoute.js';
+import { transactionRouter } from './routes/transactionRoute.js';
+import { authRouter } from './routes/authRoute.js';
 
 const app = express();
 
@@ -30,10 +31,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Appli de taches !
+ *                   example: API BudgetFlow
  */
 app.get('/', (_request, response) => {
-  response.status(200).json({ message: 'Appli de taches !' });
+  response.status(200).json({ message: 'API BudgetFlow' });
 });
 
 /**
@@ -58,7 +59,7 @@ app.get('/api/health', (_request, response) => {
   response.status(200).json({ status: 'ok' });
 });
 
-
-app.use('/api/tasks', taskRouter);
+app.use('/api/transactions', transactionRouter);
+app.use('/api/auth', authRouter);
 
 export default app;

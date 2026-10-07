@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
-const taskSchema = new mongoose.Schema({
-  title: {
+const transactionSchema = new mongoose.Schema({
+  label: {
     type: String,
     required: true,
   },
@@ -9,19 +9,19 @@ const taskSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  status: {
+  type: {
     type: String,
-    enum: ['pending', 'in progress', 'completed'],
-    default: 'pending',
+    enum: ['income', 'expense'],
+    required: true,
   },
-  deadline: {
+  amount: {
+    type: Number,
+    required: true,
+  },
+  date: {
     type: Date,
     required: true,
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-    },
   ownerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -32,4 +32,4 @@ const taskSchema = new mongoose.Schema({
     timestamps: true 
 });
 
-export const Task = mongoose.model('Task', taskSchema);
+export const Transaction = mongoose.model('Transaction', transactionSchema);
