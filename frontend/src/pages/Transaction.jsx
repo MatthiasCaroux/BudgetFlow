@@ -1,34 +1,36 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom';
 import TransactionModal from '../components/TransactionModal.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 
 const currency = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 const dateFormat = new Intl.DateTimeFormat('fr-FR');
 
-// Les routes /api/transactions sont protégées : on envoie le token JWT
-function authHeaders() {
+// Les routes /api/transactions sont protégées : on envoie le token JWT de la session
+function authHeaders(token) {
     return {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        Authorization: `Bearer ${token}`,
     };
 }
 
 export default function Transaction() {
+    usePageTitle('Transactions');
+    const { token, expireSession } = useAuth();
     const [transactions, setTransactions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [isUnauthorized, setIsUnauthorized] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Charger la liste au premier affichage de la page
     useEffect(() => {
         async function loadTransactions() {
             try {
-                const response = await fetch('/api/transactions', { headers: authHeaders() });
+                const response = await fetch('/api/transactions', { headers: authHeaders(token) });
                 if (response.status === 401) {
-                    // 401 == Unauthorized
-                    setIsUnauthorized(true);
+                    // Token expiré ou invalide : fin de session, retour à la connexion
+                    expireSession();
                     return;
                 }
                 const data = await response.json();
@@ -41,15 +43,19 @@ export default function Transaction() {
             }
         }
         loadTransactions();
-    }, []);
+    }, [token, expireSession]);
 
     // Appelée par le modal : si elle lance une erreur, le modal l'affiche
     const handleCreate = async (newTransaction) => {
         const response = await fetch('/api/transactions', {
             method: 'POST',
-            headers: authHeaders(),
+            headers: authHeaders(token),
             body: JSON.stringify(newTransaction),
         });
+        if (response.status === 401) {
+            expireSession();
+            return;
+        }
         const data = await response.json();
         if (!response.ok) throw new Error(data.error?.message || data.message || 'Erreur lors de l’ajout');
 
@@ -64,19 +70,12 @@ export default function Transaction() {
         <div className="transactions-page">
             <div className="page-header">
                 <h1>Transactions</h1>
-                {!isUnauthorized && (
-                    <button className="button button-primary" onClick={() => setIsModalOpen(true)}>
-                        + Ajouter une transaction
-                    </button>
-                )}
+                <button className="button button-primary" onClick={() => setIsModalOpen(true)}>
+                    + Ajouter une transaction
+                </button>
             </div>
 
-            {isUnauthorized ? (
-                <div className="empty-state">
-                    <p>Vous devez être connecté pour voir vos transactions.</p>
-                    <Link to="/login" className="button button-primary">Se connecter</Link>
-                </div>
-            ) : isLoading ? (
+            {isLoading ? (
                 <p className="empty-state">Chargement…</p>
             ) : error ? (
                 <ErrorMessage message={error} />

@@ -9,9 +9,11 @@ import { authRouter } from './routes/authRoute.js';
 
 const app = express();
 
-app.use(cors());
+// Seul le front configuré dans CORS_ORIGIN peut appeler l'API depuis un navigateur
+app.use(cors({ origin: config.corsOrigin }));
 app.use(helmet());
-app.use(express.json());
+// Limite la taille des corps JSON : une transaction ou un login pèse quelques centaines d'octets
+app.use(express.json({ limit: '10kb' }));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
