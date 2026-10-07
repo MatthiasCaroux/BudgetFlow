@@ -1,8 +1,8 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
-import app from '../src/app.js';
-import { User } from '../src/models/User.js';
-import { connectTestDB, clearTestDB, closeTestDB } from './helpers/db.js';
+import app from '../../src/app.js';
+import { User } from '../../src/models/User.js';
+import { connectTestDB, clearTestDB, closeTestDB } from '../helpers/db.js';
 
 beforeAll(connectTestDB);
 afterEach(clearTestDB);

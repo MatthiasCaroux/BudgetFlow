@@ -1,8 +1,8 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
-import app from '../src/app.js';
-import { connectTestDB, clearTestDB, closeTestDB } from './helpers/db.js';
-import { createUserAndToken } from './helpers/auth.js';
+import app from '../../src/app.js';
+import { connectTestDB, clearTestDB, closeTestDB } from '../helpers/db.js';
+import { createUserAndToken } from '../helpers/auth.js';
 
 beforeAll(connectTestDB);
 afterEach(clearTestDB);
