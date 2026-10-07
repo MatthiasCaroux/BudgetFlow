@@ -1,11 +1,9 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../src/app.js';
 
-test('GET /api/health retourne 200 et le statut ok', async () => {
-  const response = await request(app).get('/api/health');
+test('GET /api/health retourne 200 et exactement {"status":"ok"}', async () => {
+    const response = await request(app).get('/api/health');
 
-  assert.equal(response.status, 200);
-  assert.deepEqual(response.body, { status: 'ok' });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: 'ok' });
 });
