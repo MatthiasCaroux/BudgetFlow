@@ -1,0 +1,50 @@
+# Développement :  docker compose up -d mongo   (puis npm run dev)
+# Appli complète :  docker compose up -d --build  → http://localhost:8080
+services:
+  mongo:
+    image: mongo:7
+    container_name: BudgetFlow-mongo
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    # JWT_SECRET et JWT_EXPIRES_IN viennent de backend/.env (copié depuis .env.example)
+    env_file:
+      - path: ./backend/.env
+        required: false
+    # Valeurs propres à Docker : elles remplacent celles du .env
+    environment:
+      PORT: 3000
+      MONGO_URI: mongodb://mongo:27017/budgetflow
+      CORS_ORIGIN: http://localhost:8080
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:

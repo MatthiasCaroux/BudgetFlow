@@ -1,0 +1,12 @@
+# Le contexte de build est la racine du dépôt (workspaces npm) : on n'y envoie que le nécessaire
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+.git
+.vscode
+docs
+backend/test
