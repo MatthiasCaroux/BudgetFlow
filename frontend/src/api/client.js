@@ -9,6 +9,14 @@ export class ApiError extends Error {
     }
 }
 
+// Appelé quand une requête authentifiée reçoit 401 (token expiré ou révoqué).
+// AuthContext y branche la déconnexion automatique.
+let onUnauthorized = null;
+
+export function setUnauthorizedHandler(handler) {
+    onUnauthorized = handler;
+}
+
 export async function apiRequest(path, { method = 'GET', body, token } = {}) {
     const headers = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -23,8 +31,11 @@ export async function apiRequest(path, { method = 'GET', body, token } = {}) {
         });
     } catch {
         // fetch n'échoue que si le serveur est injoignable
-        throw new ApiError(0, 'NETWORK_ERROR', 'Impossible de joindre le serveur. Vérifiez que l\'API est lancée.');
+        throw new ApiError(0, 'NETWORK_ERROR', 'Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.');
     }
+
+    // Token refusé alors qu'on en a envoyé un : la session n'est plus valable
+    if (response.status === 401 && token) onUnauthorized?.();
 
     // 204 : succès sans corps (ex : DELETE)
     if (response.status === 204) return null;
@@ -36,7 +47,7 @@ export async function apiRequest(path, { method = 'GET', body, token } = {}) {
         throw new ApiError(
             response.status,
             data?.error?.code ?? 'UNKNOWN_ERROR',
-            data?.error?.message ?? `Erreur ${response.status}`,
+            data?.error?.message ?? 'Une erreur inattendue est survenue. Réessayez dans un instant.',
         );
     }
     return data;

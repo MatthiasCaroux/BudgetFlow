@@ -7,20 +7,23 @@ export default function NavBar() {
 
   function handleLogout() {
     logout();
-    navigate('/login');
+    navigate('/login', { replace: true, state: { reason: 'logout' } });
   }
 
   return (
     <header className="navbar">
-      <Link to="/transactions" className="navbar-brand">
+      <Link to="/" className="navbar-brand">
         BudgetFlow
       </Link>
-      <nav>
+      <nav aria-label="Navigation principale">
         <ul className="navbar-links">
           {user ? (
             <>
               <li><NavLink to="/transactions">Transactions</NavLink></li>
-              <li className="navbar-user">{user.email}</li>
+              <li className="navbar-user" title={user.email}>
+                <span className="navbar-avatar" aria-hidden="true">{user.email[0].toUpperCase()}</span>
+                <span className="navbar-email">{user.email}</span>
+              </li>
               <li>
                 <button type="button" className="navbar-logout" onClick={handleLogout}>
                   Se déconnecter
