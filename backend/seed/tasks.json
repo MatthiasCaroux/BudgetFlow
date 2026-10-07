@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Tâche test",
+    "description": "Ma première tâche",
+    "status": "pending",
+    "deadline": { "$date": "2026-12-01T00:00:00Z" },
+    "ownerId": { "$oid": "650000000000000000000001" },
+    "createdAt": { "$date": "2026-10-05T10:00:00Z" },
+    "updatedAt": { "$date": "2026-10-05T10:00:00Z" }
+  },
+  {
+    "title": "Faire le CRUD des tâches",
+    "description": "Ajouter les routes POST, PUT et DELETE",
+    "status": "in progress",
+    "deadline": { "$date": "2026-10-20T00:00:00Z" },
+    "ownerId": { "$oid": "650000000000000000000001" },
+    "createdAt": { "$date": "2026-10-05T11:00:00Z" },
+    "updatedAt": { "$date": "2026-10-05T11:00:00Z" }
+  },
+  {
+    "title": "Connexion MongoDB",
+    "description": "Brancher l'API sur la base locale",
+    "status": "completed",
+    "deadline": { "$date": "2026-10-05T00:00:00Z" },
+    "ownerId": { "$oid": "650000000000000000000001" },
+    "createdAt": { "$date": "2026-10-05T12:00:00Z" },
+    "updatedAt": { "$date": "2026-10-05T12:00:00Z" }
+  }
+]
