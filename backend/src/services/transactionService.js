@@ -1,9 +1,11 @@
 import { Transaction } from "../models/Transaction.js";
 
+// Chaque requête filtre sur ownerId : la transaction d'un autre compte est introuvable (404)
+
 export function listTransactions (ownerId, { type } = {}){
     const filter = { ownerId };
     if (type) filter.type = type;
-    return Transaction.find(filter).sort({ date: -1 });
+    return Transaction.find(filter).sort({ date: -1, createdAt: -1 });
 };
 
 export function createTransaction (ownerId, data){
@@ -15,7 +17,8 @@ export function getTransactionById (ownerId, id){
 };
 
 export function updateTransaction (ownerId, id, data){
-    return Transaction.findOneAndUpdate({ _id: id, ownerId }, { ...data, ownerId }, { returnDocument: 'after', runValidators: true });
+    // $set : seuls les champs envoyés sont modifiés (PATCH partiel)
+    return Transaction.findOneAndUpdate({ _id: id, ownerId }, { $set: data }, { returnDocument: 'after', runValidators: true });
 };
 
 export function deleteTransaction (ownerId, id){

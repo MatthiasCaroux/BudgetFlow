@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -20,6 +20,9 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
+    "jest": "^30.5.2",
+    "mongodb-memory-server": "^11.3.0",
     "supertest": "^7.1.4"
   }
 }

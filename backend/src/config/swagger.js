@@ -47,28 +47,43 @@ const options = {
         },
         TransactionInput: {
           type: 'object',
-          required: ['label', 'description', 'type', 'amount', 'date'],
+          required: ['label', 'amount', 'type', 'date'],
+          additionalProperties: false,
           properties: {
-            label: { type: 'string', example: 'Courses' },
-            description: { type: 'string', example: 'Supermarché du coin' },
+            label: { type: 'string', minLength: 1, maxLength: 120, example: 'Courses' },
+            amount: { type: 'integer', minimum: 1, description: 'Montant en centimes (12345 = 123,45 €)', example: 12345 },
             type: { type: 'string', enum: ['income', 'expense'], example: 'expense' },
-            amount: { type: 'number', example: 42.5 },
-            date: { type: 'string', format: 'date', example: '2026-10-07' },
+            date: { type: 'string', format: 'date', example: '2026-10-05' },
+            description: { type: 'string', maxLength: 1000, description: 'Facultative', example: 'Supermarché du coin' },
           },
         },
+        TransactionPatch: {
+          type: 'object',
+          minProperties: 1,
+          additionalProperties: false,
+          description: 'Au moins un champ, mêmes règles que TransactionInput',
+          properties: {
+            label: { type: 'string', minLength: 1, maxLength: 120 },
+            amount: { type: 'integer', minimum: 1 },
+            type: { type: 'string', enum: ['income', 'expense'] },
+            date: { type: 'string', format: 'date' },
+            description: { type: 'string', maxLength: 1000 },
+          },
+          example: { amount: 9900 },
+        },
         Transaction: {
-          allOf: [
-            { $ref: '#/components/schemas/TransactionInput' },
-            {
-              type: 'object',
-              properties: {
-                _id: { type: 'string', example: '66f1c2a4e1b2c3d4e5f60718' },
-                ownerId: { type: 'string', example: '66f1c2a4e1b2c3d4e5f60719' },
-                createdAt: { type: 'string', format: 'date-time' },
-                updatedAt: { type: 'string', format: 'date-time' },
-              },
-            },
-          ],
+          type: 'object',
+          properties: {
+            id: { type: 'string', example: '507f1f77bcf86cd799439012' },
+            label: { type: 'string', example: 'Courses' },
+            amount: { type: 'integer', example: 12345 },
+            type: { type: 'string', enum: ['income', 'expense'], example: 'expense' },
+            date: { type: 'string', format: 'date', example: '2026-10-05' },
+            description: { type: 'string', example: 'Supermarché du coin' },
+            ownerId: { type: 'string', example: '66f1c2a4e1b2c3d4e5f60719' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
         },
         Error: {
           type: 'object',
@@ -82,11 +97,14 @@ const options = {
             },
           },
         },
-        NotFound: {
-          type: 'object',
-          properties: {
-            message: { type: 'string', example: 'Transaction introuvable' },
-          },
+      },
+      parameters: {
+        TransactionId: {
+          in: 'path',
+          name: 'id',
+          required: true,
+          description: 'Identifiant MongoDB de la transaction (24 caractères hexadécimaux)',
+          schema: { type: 'string', example: '507f1f77bcf86cd799439012' },
         },
       },
       responses: {
@@ -100,10 +118,20 @@ const options = {
           },
         },
         NotFound: {
-          description: "La transaction n'existe pas ou n'appartient pas à l'utilisateur",
+          description: "La transaction n'existe pas ou appartient à un autre utilisateur",
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/NotFound' },
+              schema: { $ref: '#/components/schemas/Error' },
+              example: { error: { code: 'NOT_FOUND', message: 'Transaction introuvable' } },
+            },
+          },
+        },
+        BadRequest: {
+          description: 'Corps invalide, champ interdit (id, ownerId, inconnu) ou identifiant mal formé',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' },
+              example: { error: { code: 'INVALID_INPUT', message: 'Le montant doit être un nombre entier de centimes strictement positif' } },
             },
           },
         },

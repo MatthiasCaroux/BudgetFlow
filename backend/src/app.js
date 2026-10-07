@@ -6,12 +6,15 @@ import { config } from './config/env.js';
 import { swaggerSpec } from './config/swagger.js';
 import { transactionRouter } from './routes/transactionRoute.js';
 import { authRouter } from './routes/authRoute.js';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 const app = express();
 
-app.use(cors());
+// Seul le front configuré dans CORS_ORIGIN peut appeler l'API depuis un navigateur
+app.use(cors({ origin: config.corsOrigin }));
 app.use(helmet());
-app.use(express.json());
+// Limite la taille des corps JSON : une transaction ou un login pèse quelques centaines d'octets
+app.use(express.json({ limit: '10kb' }));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -61,5 +64,9 @@ app.get('/api/health', (_request, response) => {
 
 app.use('/api/transactions', transactionRouter);
 app.use('/api/auth', authRouter);
+
+// En dernier : routes inconnues puis erreurs, toujours au format { error: { code, message } }
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;

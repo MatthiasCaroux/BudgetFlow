@@ -18,7 +18,8 @@ export function requireAuth(req, res, next) {
 
     try {
         // jwt.verify lance une erreur si la signature est fausse ou si le token a expiré
-        const payload = jwt.verify(token, config.jwtSecret);
+        // algorithms : on n'accepte que HS256, l'algorithme utilisé par createToken
+        const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
         // Seulement l'id (rangé sous "sub" dans createToken), pas tout le contenu du token
         req.userId = payload.sub;
         next();

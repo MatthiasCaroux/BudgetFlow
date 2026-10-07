@@ -1,108 +1,141 @@
-import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import TransactionModal from '../components/TransactionModal.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
+import InfoMessage from '../components/InfoMessage.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { usePageTitle } from '../hooks/usePageTitle.js';
+import { createTransaction, listTransactions } from '../api/transactions.js';
+import { formatCents } from '../utils/money.js';
+import { formatDate } from '../utils/dates.js';
 
-const currency = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
-const dateFormat = new Intl.DateTimeFormat('fr-FR');
-
-// Les routes /api/transactions sont protégées : on envoie le token JWT
-function authHeaders() {
-    return {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-    };
+// Revenus, dépenses et solde, calculés en centimes entiers (pas d'erreur d'arrondi)
+function computeTotals(transactions) {
+    let income = 0;
+    let expense = 0;
+    for (const t of transactions) {
+        if (t.type === 'income') income += t.amount;
+        else expense += t.amount;
+    }
+    return { income, expense, balance: income - expense };
 }
 
 export default function Transaction() {
+    usePageTitle('Transactions');
+    const { token } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
     const [transactions, setTransactions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [isUnauthorized, setIsUnauthorized] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    // Message de confirmation transmis par une autre page (ex : après une suppression)
+    const [notice, setNotice] = useState(location.state?.notice ?? '');
+
+    const loadTransactions = useCallback(async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            setTransactions(await listTransactions(token));
+        } catch (err) {
+            // Un 401 est déjà géré : la session se termine et on revient à la connexion
+            if (err.status !== 401) setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [token]);
 
     // Charger la liste au premier affichage de la page
     useEffect(() => {
-        async function loadTransactions() {
-            try {
-                const response = await fetch('/api/transactions', { headers: authHeaders() });
-                if (response.status === 401) {
-                    // 401 == Unauthorized
-                    setIsUnauthorized(true);
-                    return;
-                }
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement');
-                setTransactions(data.transactions);
-            } catch (err) {
-                setError(err.message === 'Failed to fetch' ? 'Impossible de contacter le serveur' : err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        }
         loadTransactions();
-    }, []);
+    }, [loadTransactions]);
+
+    // Le message de confirmation ne doit pas réapparaître si on recharge la page
+    useEffect(() => {
+        if (location.state?.notice) navigate(location.pathname, { replace: true, state: null });
+    }, [location, navigate]);
 
     // Appelée par le modal : si elle lance une erreur, le modal l'affiche
     const handleCreate = async (newTransaction) => {
-        const response = await fetch('/api/transactions', {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify(newTransaction),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || data.message || 'Erreur lors de l’ajout');
-
-        // On ajoute la transaction à la liste puis on retrie par date (la plus récente en haut)
+        const created = await createTransaction(token, newTransaction);
+        // Même tri que l'API : date la plus récente en haut
         setTransactions((current) =>
-            [data.transaction, ...current].sort((a, b) => new Date(b.date) - new Date(a.date))
+            [created, ...current].sort((a, b) => b.date.localeCompare(a.date))
         );
         setIsModalOpen(false);
+        setNotice(`« ${created.label} » a été ajoutée.`);
     };
+
+    const totals = computeTotals(transactions);
 
     return (
         <div className="transactions-page">
             <div className="page-header">
                 <h1>Transactions</h1>
-                {!isUnauthorized && (
+                <button className="button button-primary" onClick={() => { setNotice(''); setIsModalOpen(true); }}>
+                    + Ajouter une transaction
+                </button>
+            </div>
+
+            <InfoMessage message={notice} />
+
+            {!isLoading && !error && transactions.length > 0 && (
+                <section className="summary" aria-label="Résumé">
+                    <div className="summary-card">
+                        <span className="summary-label">Revenus</span>
+                        <span className="summary-value income">{formatCents(totals.income)}</span>
+                    </div>
+                    <div className="summary-card">
+                        <span className="summary-label">Dépenses</span>
+                        <span className="summary-value expense">{formatCents(totals.expense)}</span>
+                    </div>
+                    <div className="summary-card">
+                        <span className="summary-label">Solde</span>
+                        <span className={`summary-value ${totals.balance < 0 ? 'expense' : 'income'}`}>
+                            {totals.balance < 0 ? '−' : ''}{formatCents(Math.abs(totals.balance))}
+                        </span>
+                    </div>
+                </section>
+            )}
+
+            {isLoading ? (
+                <p className="empty-state" aria-live="polite">Chargement de vos transactions…</p>
+            ) : error ? (
+                <div className="error-state">
+                    <ErrorMessage message={error} />
+                    <button className="button button-secondary" onClick={loadTransactions}>Réessayer</button>
+                </div>
+            ) : transactions.length === 0 ? (
+                <div className="empty-state">
+                    <p><strong>Aucune transaction pour le moment.</strong></p>
+                    <p>Ajoutez votre première dépense ou votre premier revenu pour commencer à suivre votre budget.</p>
                     <button className="button button-primary" onClick={() => setIsModalOpen(true)}>
                         + Ajouter une transaction
                     </button>
-                )}
-            </div>
-
-            {isUnauthorized ? (
-                <div className="empty-state">
-                    <p>Vous devez être connecté pour voir vos transactions.</p>
-                    <Link to="/login" className="button button-primary">Se connecter</Link>
-                </div>
-            ) : isLoading ? (
-                <p className="empty-state">Chargement…</p>
-            ) : error ? (
-                <ErrorMessage message={error} />
-            ) : transactions.length === 0 ? (
-                <div className="empty-state">
-                    <p>Aucune transaction pour le moment.</p>
-                    <p>Cliquez sur « Ajouter une transaction » pour commencer.</p>
                 </div>
             ) : (
                 <div className="table-wrapper">
                     <table className="transactions-table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Libellé</th>
-                                <th>Description</th>
-                                <th>Type</th>
-                                <th className="amount">Montant</th>
+                                <th scope="col">Date</th>
+                                <th scope="col">Libellé</th>
+                                <th scope="col">Description</th>
+                                <th scope="col">Type</th>
+                                <th scope="col" className="amount">Montant</th>
                             </tr>
                         </thead>
                         <tbody>
                             {transactions.map((transaction) => (
-                                <tr key={transaction._id}>
-                                    <td>{dateFormat.format(new Date(transaction.date))}</td>
-                                    <td className="label">{transaction.label}</td>
-                                    <td className="muted">{transaction.description}</td>
+                                <tr key={transaction.id}>
+                                    <td>{formatDate(transaction.date)}</td>
+                                    <td className="label">
+                                        {/* Le lien couvre toute la ligne (voir .row-link dans le CSS) */}
+                                        <Link to={`/transactions/${transaction.id}`} className="row-link">
+                                            {transaction.label}
+                                        </Link>
+                                    </td>
+                                    <td className="muted">{transaction.description || '—'}</td>
                                     <td>
                                         <span className={`badge ${transaction.type}`}>
                                             {transaction.type === 'income' ? 'Revenu' : 'Dépense'}
@@ -110,7 +143,7 @@ export default function Transaction() {
                                     </td>
                                     <td className={`amount ${transaction.type}`}>
                                         {transaction.type === 'income' ? '+' : '−'}
-                                        {currency.format(transaction.amount)}
+                                        {formatCents(transaction.amount)}
                                     </td>
                                 </tr>
                             ))}
