@@ -7,12 +7,166 @@ export const transactionRouter = Router();
 // Toutes les routes ci-dessous exigent un JWT valide
 transactionRouter.use(requireAuth);
 
+/**
+ * @openapi
+ * /api/transactions:
+ *   get:
+ *     summary: Liste les transactions de l'utilisateur connecté
+ *     description: Triées par date, de la plus récente à la plus ancienne.
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         required: false
+ *         description: Filtre sur le type de transaction
+ *         schema:
+ *           type: string
+ *           enum: [income, expense]
+ *     responses:
+ *       200:
+ *         description: Liste des transactions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Liste des transactions
+ *                 transactions:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Transaction'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
 transactionRouter.get("/", transactionController.getAllTransactions);
 
+/**
+ * @openapi
+ * /api/transactions:
+ *   post:
+ *     summary: Crée une transaction
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TransactionInput'
+ *     responses:
+ *       201:
+ *         description: Transaction créée
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Transaction créée
+ *                 transaction:
+ *                   $ref: '#/components/schemas/Transaction'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
 transactionRouter.post("/", transactionController.createTransaction);
 
+/**
+ * @openapi
+ * /api/transactions/{id}:
+ *   get:
+ *     summary: Récupère une transaction par son id
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Transaction trouvée
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transaction:
+ *                   $ref: '#/components/schemas/Transaction'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 transactionRouter.get("/:id", transactionController.getTransactionById);
 
+/**
+ * @openapi
+ * /api/transactions/{id}:
+ *   put:
+ *     summary: Modifie une transaction
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TransactionInput'
+ *     responses:
+ *       200:
+ *         description: Transaction modifiée
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Transaction modifiée
+ *                 transaction:
+ *                   $ref: '#/components/schemas/Transaction'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 transactionRouter.put("/:id", transactionController.updateTransaction);
 
+/**
+ * @openapi
+ * /api/transactions/{id}:
+ *   delete:
+ *     summary: Supprime une transaction
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Transaction supprimée
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 transactionRouter.delete("/:id", transactionController.deleteTransaction);
