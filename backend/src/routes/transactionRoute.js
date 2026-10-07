@@ -1,7 +1,11 @@
 import { Router } from "express";
 import * as transactionController from "../controllers/transactionController.js";
+import { requireAuth } from "../middlewares/requireAuth.js";
 
 export const transactionRouter = Router();
+
+// Toutes les routes ci-dessous exigent un JWT valide
+transactionRouter.use(requireAuth);
 
 transactionRouter.get("/", transactionController.getAllTransactions);
 
