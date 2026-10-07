@@ -1,4 +1,15 @@
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(value) {
+    if (value.length > 254 || value.includes(' ')) {
+        return false;
+    }
+    const atIndex = value.indexOf('@');
+    if (atIndex <= 0 || atIndex !== value.lastIndexOf('@') || atIndex === value.length - 1) {
+        return false;
+    }
+    const localPart = value.slice(0, atIndex);
+    const domainPart = value.slice(atIndex + 1);
+    return localPart.length > 0 && domainPart.includes('.') && !domainPart.startsWith('.') && !domainPart.endsWith('.');
+}
 export function validateCredentials(body){
     if (typeof body !== 'object' || body === null || Array.isArray(body)) {
         return 'Le corps de la requête est invalide';
@@ -6,7 +17,7 @@ export function validateCredentials(body){
     if (typeof body.email !== 'string') {
         return 'L\'email est requis';
     }
-    if (!EMAIL_REGEX.test(body.email)) {
+    if (!isValidEmail(body.email)) {
         return 'L\'email est invalide';
     }
     if (typeof body.password !== 'string') {
@@ -17,4 +28,3 @@ export function validateCredentials(body){
     }
     return null;
 }
-
