@@ -12,7 +12,7 @@ transactionRouter.use(requireAuth);
  * /api/transactions:
  *   get:
  *     summary: Liste les transactions de l'utilisateur connecté
- *     description: Triées par date, de la plus récente à la plus ancienne.
+ *     description: Triées par date, de la plus récente à la plus ancienne. Une liste vide renvoie {"items":[]}.
  *     tags: [Transactions]
  *     security:
  *       - bearerAuth: []
@@ -32,13 +32,12 @@ transactionRouter.use(requireAuth);
  *             schema:
  *               type: object
  *               properties:
- *                 message:
- *                   type: string
- *                   example: Liste des transactions
- *                 transactions:
+ *                 items:
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Transaction'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
@@ -64,13 +63,9 @@ transactionRouter.get("/", transactionController.getAllTransactions);
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Transaction créée
- *                 transaction:
- *                   $ref: '#/components/schemas/Transaction'
+ *               $ref: '#/components/schemas/Transaction'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
@@ -85,21 +80,16 @@ transactionRouter.post("/", transactionController.createTransaction);
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
+ *       - $ref: '#/components/parameters/TransactionId'
  *     responses:
  *       200:
  *         description: Transaction trouvée
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 transaction:
- *                   $ref: '#/components/schemas/Transaction'
+ *               $ref: '#/components/schemas/Transaction'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       404:
@@ -110,42 +100,35 @@ transactionRouter.get("/:id", transactionController.getTransactionById);
 /**
  * @openapi
  * /api/transactions/{id}:
- *   put:
- *     summary: Modifie une transaction
+ *   patch:
+ *     summary: Modifie une partie d'une transaction
+ *     description: Seuls les champs envoyés sont modifiés. Un corps vide, un champ inconnu, id ou ownerId sont refusés (400).
  *     tags: [Transactions]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
+ *       - $ref: '#/components/parameters/TransactionId'
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/TransactionInput'
+ *             $ref: '#/components/schemas/TransactionPatch'
  *     responses:
  *       200:
  *         description: Transaction modifiée
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Transaction modifiée
- *                 transaction:
- *                   $ref: '#/components/schemas/Transaction'
+ *               $ref: '#/components/schemas/Transaction'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-transactionRouter.put("/:id", transactionController.updateTransaction);
+transactionRouter.patch("/:id", transactionController.updateTransaction);
 
 /**
  * @openapi
@@ -156,14 +139,12 @@ transactionRouter.put("/:id", transactionController.updateTransaction);
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
+ *       - $ref: '#/components/parameters/TransactionId'
  *     responses:
  *       204:
- *         description: Transaction supprimée
+ *         description: Transaction supprimée (aucun corps)
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       404:

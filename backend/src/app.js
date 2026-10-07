@@ -6,6 +6,7 @@ import { config } from './config/env.js';
 import { swaggerSpec } from './config/swagger.js';
 import { transactionRouter } from './routes/transactionRoute.js';
 import { authRouter } from './routes/authRoute.js';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 const app = express();
 
@@ -63,5 +64,9 @@ app.get('/api/health', (_request, response) => {
 
 app.use('/api/transactions', transactionRouter);
 app.use('/api/auth', authRouter);
+
+// En dernier : routes inconnues puis erreurs, toujours au format { error: { code, message } }
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;

@@ -708,3 +708,210 @@ button:focus-visible {
     transition: none !important;
   }
 }
+
+/* ---------- Transactions : résumé, lignes cliquables ---------- */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
+}
+
+.summary-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+}
+
+.summary-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.income {
+  color: #047857;
+}
+
+.summary-value.expense {
+  color: var(--color-error);
+}
+
+.transactions-page > .info-message {
+  margin-bottom: 1.5rem;
+}
+
+/* Toute la ligne est cliquable : le lien du libellé s'étend sur la ligne entière */
+.transactions-table tbody tr {
+  position: relative;
+}
+
+.row-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.row-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.transactions-table tbody tr:hover .row-link {
+  text-decoration: underline;
+}
+
+.transactions-table tbody tr:focus-within {
+  outline: 3px solid var(--color-accent);
+  outline-offset: -3px;
+}
+
+.row-link:focus-visible {
+  outline: none;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+/* ---------- Détail d'une transaction ---------- */
+
+.detail-page {
+  width: min(100%, 40rem);
+  margin: 0 auto;
+  align-self: start;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.75rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: 0 4px 20px rgb(15 23 42 / 0.08);
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.detail-header h1 {
+  margin: 0.5rem 0 0;
+  font-size: 1.75rem;
+  color: var(--color-primary);
+  overflow-wrap: anywhere;
+}
+
+.detail-amount {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 1.25rem 0;
+  border-block: 1px solid #e2e8f0;
+}
+
+.detail-list dt {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+}
+
+.detail-list dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-list .muted {
+  color: var(--color-muted);
+}
+
+.detail-card .info-message {
+  margin: 0;
+}
+
+.detail-actions,
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.button-danger {
+  background: var(--color-error);
+  color: white;
+}
+
+.button-danger:hover {
+  background: #991b1b;
+}
+
+.button-danger-outline {
+  border-color: #fca5a5;
+  background: transparent;
+  color: var(--color-error);
+}
+
+.button-danger-outline:hover {
+  background: #fef2f2;
+}
+
+.confirm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius);
+  background: #fef2f2;
+}
+
+.confirm-box p {
+  margin: 0;
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--color-muted);
+}

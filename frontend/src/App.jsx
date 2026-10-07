@@ -7,6 +7,7 @@ import Home from './pages/Home.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import Registerpage from './pages/Registerpage.jsx';
 import Transaction from './pages/Transaction.jsx';
+import TransactionDetailPage from './pages/TransactionDetailPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
 // Accueil : les visiteurs voient la présentation, les connectés vont à leurs transactions
@@ -28,6 +29,7 @@ export default function App() {
 
         {/* Pages réservées aux utilisateurs connectés */}
         <Route path="/transactions" element={<ProtectedRoute><Transaction /></ProtectedRoute>} />
+        <Route path="/transactions/:id" element={<ProtectedRoute><TransactionDetailPage /></ProtectedRoute>} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
