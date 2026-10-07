@@ -24,10 +24,42 @@ body {
   background: var(--color-background);
 }
 
+/* Même largeur et mêmes marges pour l'en-tête, le contenu et le pied de page */
+.container {
+  width: min(100% - 2.5rem, 72rem);
+  margin-inline: auto;
+}
+
 .layout {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+main:focus {
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+  padding: 0.5rem 1rem;
+  background: white;
+  color: var(--color-primary);
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
 }
 
 .content {
