@@ -1,7 +1,18 @@
 :root {
-  font-family: Arial, sans-serif;
-  color: #1f2937;
-  background: #f8fafc;
+  --color-primary: #1e3a5f;
+  --color-primary-hover: #2b5285;
+  --color-accent: #10b981;
+  --color-text: #1f2937;
+  --color-muted: #64748b;
+  --color-border: #cbd5e1;
+  --color-background: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-error: #b91c1c;
+  --radius: 0.5rem;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  color: var(--color-text);
+  background: var(--color-background);
 }
 
 * {
@@ -10,6 +21,7 @@
 
 body {
   margin: 0;
+  background: var(--color-background);
 }
 
 .layout {
@@ -18,43 +30,247 @@ body {
   flex-direction: column;
 }
 
-.header,
-.footer {
-  padding: 1rem clamp(1.25rem, 5vw, 4rem);
-  background: #1e3a5f;
-  color: white;
-}
-
-.header p {
-  margin: 0;
-  font-weight: 700;
-}
-
 .content {
   width: min(100% - 2.5rem, 72rem);
   margin: 0 auto;
   flex: 1;
   display: grid;
   place-items: center;
+  padding: 2.5rem 0;
 }
+
+/* ---------- Barre de navigation ---------- */
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.875rem clamp(1.25rem, 5vw, 4rem);
+  background: var(--color-primary);
+}
+
+.navbar-brand {
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navbar-links a {
+  display: block;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius);
+  color: #cbd5e1;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.navbar-links a:hover,
+.navbar-links a.active {
+  color: white;
+  background: rgb(255 255 255 / 0.12);
+}
+
+.navbar-links a.navbar-cta {
+  color: var(--color-primary);
+  background: white;
+}
+
+.navbar-links a.navbar-cta:hover,
+.navbar-links a.navbar-cta.active {
+  background: #e2e8f0;
+}
+
+/* ---------- Pied de page ---------- */
+
+.footer {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ---------- Boutons ---------- */
+
+.button {
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.button-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.button-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.button-secondary {
+  border-color: var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+}
+
+.button-secondary:hover {
+  background: rgb(30 58 95 / 0.08);
+}
+
+/* ---------- Page d'accueil ---------- */
 
 .home {
   width: 100%;
-  padding: 3rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
 }
 
-.home h1 {
+.hero {
+  max-width: 44rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.hero h1 {
   margin: 0 0 1rem;
-  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  line-height: 1.15;
+  color: var(--color-primary);
 }
 
-.home p {
-  margin: 0;
+.hero p {
+  margin: 0 0 2rem;
   font-size: 1.125rem;
   line-height: 1.6;
+  color: var(--color-muted);
 }
 
-.footer {
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.25rem;
+}
+
+.feature-card {
+  padding: 1.5rem;
+  border-top: 4px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
+}
+
+.feature-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+}
+
+.feature-card p {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+/* ---------- Connexion / inscription ---------- */
+
+.auth-card {
+  width: min(100%, 26rem);
+  padding: 2rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: 0 4px 20px rgb(15 23 42 / 0.08);
+}
+
+.auth-card h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  color: var(--color-primary);
+}
+
+.auth-subtitle {
+  margin: 0 0 1.75rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.auth-form input {
+  padding: 0.6875rem 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 400;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(30 58 95 / 0.18);
+}
+
+.auth-form .button {
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.auth-switch {
+  margin: 1.5rem 0 0;
   text-align: center;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+
+.auth-switch a {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.error-message {
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius);
+  background: #fef2f2;
+  color: var(--color-error);
+  font-size: 0.9375rem;
 }
