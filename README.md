@@ -78,13 +78,13 @@ Le fichier `backend/.env` est ignoré par Git. Seul `backend/.env.example`, sans
 
 ### Lancer MongoDB
 
-Avec Docker :
+Avec Docker, depuis la racine du projet :
 
 ```bash
-docker run -d --name budgetflow-mongo -p 27017:27017 mongo:7
+docker compose up -d mongo
 ```
 
-Pour le relancer plus tard : `docker start budgetflow-mongo`.
+Le conteneur redémarre automatiquement avec Docker, et ses données sont conservées dans un volume.
 
 Sans Docker, installez [MongoDB Community](https://www.mongodb.com/try/download/community) et vérifiez qu'il écoute sur le port 27017. Les données sont conservées par MongoDB : elles restent disponibles après un redémarrage de l'API.
 
@@ -107,6 +107,23 @@ Cette commande lance l'API et le front en même temps, avec rechargement automat
 
 Si le port 5173 est déjà utilisé, Vite prend automatiquement le suivant (5174…) et l'affiche dans le terminal.
 
+### Application complète dans Docker
+
+Pour lancer MongoDB, l'API et le front sans rien installer d'autre que Docker :
+
+```bash
+cp backend/.env.example backend/.env   # puis modifier JWT_SECRET
+docker compose up -d --build
+```
+
+| Service | Adresse |
+|---|---|
+| Application (front servi par nginx) | http://localhost:8080 |
+| API | http://localhost:3000 |
+| Documentation Swagger | http://localhost:3000/api-docs |
+
+Dans ce mode, `MONGO_URI`, `PORT` et `CORS_ORIGIN` sont fixés par `docker-compose.yml` ; seuls `JWT_SECRET` et `JWT_EXPIRES_IN` sont lus dans `backend/.env`. Pour tout arrêter : `docker compose down`.
+
 Autres commandes :
 
 | Commande (à la racine) | Effet |
@@ -118,10 +135,14 @@ Autres commandes :
 ## Tests et build
 
 ```bash
-npm test
+npm test                  # tous les tests (135)
+npm run test:unit         # tests unitaires : fonctions isolées, sans base de données
+npm run test:functional   # tests fonctionnels : appels HTTP sur l'API, MongoDB en mémoire
 ```
 
-Lance les **70 tests** Jest + Supertest du back-end :
+**Tests unitaires** (`backend/test/unit/`) : validateurs (auth et transactions), vérification des dates, classe `AppError` et gestionnaire d'erreurs, testés sans serveur ni base.
+
+**Tests fonctionnels** (`backend/test/functional/`), avec Jest + Supertest :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -130,7 +151,7 @@ Lance les **70 tests** Jest + Supertest du back-end :
 | `transactions.test.js` | Parcours CRUD complet, toutes les validations (montant décimal, nul ou négatif, date impossible, champ inconnu, `ownerId` envoyé par le client…), identifiants mal formés (400) ou absents (404), tri et filtre |
 | `isolation.test.js` | Accès sans token, avec un token falsifié ou expiré (401) ; un compte B ne peut ni voir, ni modifier, ni supprimer les transactions d'un compte A (404) |
 
-Les tests utilisent une **base MongoDB en mémoire**, créée pour l'occasion et vidée entre chaque test : ils ne touchent jamais à la base de développement. Le premier lancement télécharge cette base de test (environ 140 Mo), les suivants sont immédiats.
+Les tests fonctionnels utilisent une **base MongoDB en mémoire**, créée pour l'occasion et vidée entre chaque test : ils ne touchent jamais à la base de développement. Le premier lancement télécharge cette base de test (environ 140 Mo), les suivants sont immédiats.
 
 ```bash
 npm run build
@@ -205,7 +226,7 @@ Une requête métier traverse toujours les mêmes étapes :
 | Contrôleur | `controllers/transactionController.js` | Lit la requête, appelle le service, choisit le code HTTP |
 | Service | `services/transactionService.js` | Accès aux données, toujours filtré par propriétaire |
 | Modèle | `models/Transaction.js` | Schéma Mongoose |
-| Erreurs | `middlewares/errorHandler.js` | Route inconnue et erreurs imprévues au format `{ error }`, sans détail technique |
+| Erreurs | `errors/AppError.js`, `middlewares/errorHandler.js` | Les erreurs prévues sont des `AppError` (400, 401, 404, 409) ; le gestionnaire les renvoie au format `{ error }`, et transforme toute erreur imprévue en 500 sans détail technique |
 
 ### Back-end (`backend/`)
 
@@ -216,14 +237,17 @@ src/
 ├── config/           Variables d'environnement, connexion MongoDB, Swagger
 ├── routes/           authRoute, transactionRoute
 ├── middlewares/      requireAuth, errorHandler
+├── errors/           AppError et raccourcis (invalidInput, unauthorized, notFound, conflict)
 ├── validators/       authValidator, transactionValidator
 ├── controllers/      authController, transactionController
 ├── services/         authService, transactionService
 ├── models/           User, Transaction
 └── utils/            dates (vérification des dates réelles)
 test/
-├── helpers/          Base de test en mémoire, création d'utilisateurs, variables de test
-└── *.test.js         Tests Jest + Supertest
+├── unit/             Tests unitaires (validateurs, dates, erreurs)
+├── functional/       Tests de l'API par HTTP (Supertest + MongoDB en mémoire)
+└── helpers/          Base de test en mémoire, création d'utilisateurs, variables de test
+Dockerfile            Image de l'API
 ```
 
 ### Front-end (`frontend/`)
@@ -238,6 +262,7 @@ src/
 ├── pages/            Accueil, Connexion, Inscription, Transactions, Détail, 404
 ├── hooks/            usePageTitle
 └── utils/            money (euros ↔ centimes), dates
+Dockerfile, nginx.conf   Image de production du front, servie par nginx
 ```
 
 | Page | Accès |
@@ -271,7 +296,7 @@ src/
 - **Vite** sert l'application en développement (démarrage instantané, rechargement à chaud) et produit le build de production. Son proxy redirige `/api` vers l'API : le front n'a pas besoin de connaître l'adresse du back.
 - **Babel** est un *transpileur* : il transforme le JSX et le JavaScript récent en code que tous les navigateurs comprennent. Vite utilise esbuild, un outil équivalent beaucoup plus rapide, pour ce même rôle.
 - **Webpack** est un *bundler* : il rassemble les nombreux fichiers d'une application en quelques fichiers optimisés. C'est l'outil historique, que Vite remplace ici (Vite s'appuie sur Rollup pour le build de production).
-- **Intégration continue.** Dans une chaîne CI/CD, chaque push déclencherait : `npm ci`, puis `npm test`, puis `npm run build`. Le déploiement n'aurait lieu que si toutes les étapes réussissent. Les tests utilisant une base en mémoire, ils tournent sans aucune base de données à installer.
+- **Intégration continue.** Dans une chaîne CI/CD, chaque push déclencherait : `npm ci`, puis `npm run test:unit` (rapide), `npm run test:functional`, puis `npm run build` et la construction des images Docker. Le déploiement n'aurait lieu que si toutes les étapes réussissent. Les tests utilisant une base en mémoire, ils tournent sans aucune base de données à installer.
 
 ## Limites connues
 
