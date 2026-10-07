@@ -1,16 +1,17 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
-import Home from './pages/Home.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import Registerpage from './pages/Registerpage.jsx';
+import Transaction from './pages/Transaction.jsx';
 
 export default function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Navigate to="/transactions" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<Registerpage />} />
+        <Route path="/transactions" element={<Transaction />} />
       </Routes>
     </Layout>
   );
