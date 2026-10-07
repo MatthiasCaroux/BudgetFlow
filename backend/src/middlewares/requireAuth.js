@@ -1,16 +1,13 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
+import { unauthorized } from '../errors/AppError.js';
 
-function unauthorized(res) {
-    return res.status(401).json({ error: {code: 'UNAUTHORIZED', message: 'Authentification requise'} });
-}
-
-export function requireAuth(req, res, next) {
+export function requireAuth(req, _res, next) {
     const header = req.headers.authorization;
 
     // L'en-tête doit exister et avoir la forme "Bearer <token>"
     if (!header || !header.startsWith('Bearer ')) {
-        return unauthorized(res);
+        return next(unauthorized());
     }
 
     // 'Bearer ' fait 7 caractères : on garde ce qui vient après
@@ -22,8 +19,9 @@ export function requireAuth(req, res, next) {
         const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
         // Seulement l'id (rangé sous "sub" dans createToken), pas tout le contenu du token
         req.userId = payload.sub;
-        next();
     } catch {
-        return unauthorized(res);
+        return next(unauthorized());
     }
+    // next() hors du try : une erreur levée plus loin ne doit pas être confondue avec un token invalide
+    next();
 }
