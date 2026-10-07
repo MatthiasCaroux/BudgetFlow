@@ -2,8 +2,6 @@
   font-family: Arial, sans-serif;
   color: #1f2937;
   background: #f8fafc;
-  --brand: #1e3a5f;
-  --focus: #f59e0b;
 }
 
 * {
@@ -14,90 +12,27 @@ body {
   margin: 0;
 }
 
-/* Même largeur et mêmes marges pour l'en-tête, le contenu et le pied de page */
-.container {
-  width: min(100% - 2.5rem, 72rem);
-  margin-inline: auto;
-}
-
 .layout {
   min-height: 100vh;
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
 
-:focus-visible {
-  outline: 3px solid var(--brand);
-  outline-offset: 2px;
-}
-
-/* Sur fond bleu, contour orange pour rester bien visible */
-.header :focus-visible {
-  outline-color: var(--focus);
-}
-
-main:focus {
-  outline: none;
-}
-
-.skip-link {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  z-index: 10;
-  padding: 0.5rem 1rem;
-  background: white;
-  color: var(--brand);
-  font-weight: 700;
-  transform: translateY(-200%);
-}
-
-.skip-link:focus {
-  transform: none;
-}
-
 .header,
 .footer {
-  padding-block: 1rem;
-  background: var(--brand);
+  padding: 1rem clamp(1.25rem, 5vw, 4rem);
+  background: #1e3a5f;
   color: white;
 }
 
-.header-inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1.5rem;
-}
-
-.header a {
-  color: inherit;
-}
-
-.brand {
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.nav-list {
-  display: flex;
-  gap: 1rem;
+.header p {
   margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.nav-list a {
-  text-underline-offset: 0.25em;
-}
-
-.nav-list a:not([aria-current]) {
-  text-decoration: none;
+  font-weight: 700;
 }
 
 .content {
+  width: min(100% - 2.5rem, 72rem);
+  margin: 0 auto;
   flex: 1;
   display: grid;
   place-items: center;
