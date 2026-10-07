@@ -22,6 +22,8 @@ app.get('/api/health', (_request, response) => {
 
 
 app.use('/api/transactions', transactionRouter);
+
+
 app.use('/api/auth', authRouter);
 
 

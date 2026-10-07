@@ -1,10 +1,17 @@
+import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
 import Home from './pages/Home.jsx';
+import LoginPage from './pages/LoginPage.jsx';
+import Registerpage from './pages/Registerpage.jsx';
 
 export default function App() {
   return (
     <Layout>
-      <Home />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<Registerpage />} />
+      </Routes>
     </Layout>
   );
 }
