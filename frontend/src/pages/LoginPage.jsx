@@ -1,14 +1,29 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import ErrorMessage from '../components/ErrorMessage.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const { login } = useAuth();
+    const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Email:', email);
-        console.log('Password:', password);
+        setError('');
+        setLoading(true);
+        try {
+            await login(email, password);
+            navigate('/transactions');
+        } catch (err) {
+            // Message renvoyé par l'API (ex : 401 "Email ou mot de passe incorrect")
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -38,7 +53,10 @@ function LoginPage() {
                         required
                     />
                 </label>
-                <button type="submit" className="button button-primary">Se connecter</button>
+                <ErrorMessage message={error} />
+                <button type="submit" className="button button-primary" disabled={loading}>
+                    {loading ? 'Connexion…' : 'Se connecter'}
+                </button>
             </form>
             <p className="auth-switch">
                 Pas encore de compte ? <Link to="/register">Créer un compte</Link>

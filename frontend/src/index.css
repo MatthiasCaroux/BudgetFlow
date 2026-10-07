@@ -93,6 +93,34 @@ body {
   background: #e2e8f0;
 }
 
+.navbar-user {
+  padding: 0 0.5rem;
+  color: #cbd5e1;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.navbar-logout {
+  padding: 0.5rem 0.875rem;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  border-radius: var(--radius);
+  background: transparent;
+  color: white;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.navbar-logout:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.navbar-logout:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
 /* ---------- Pied de page ---------- */
 
 .footer {

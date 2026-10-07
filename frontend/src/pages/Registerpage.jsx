@@ -1,22 +1,35 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import ErrorMessage from '../components/ErrorMessage.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 
 function Registerpage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const { register } = useAuth()
+  const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (password !== confirmPassword) {
       setError('Les mots de passe ne correspondent pas')
       return
     }
     setError('')
-    console.log('Email:', email)
-    console.log('Password:', password)
+    setLoading(true)
+    try {
+      // L'inscription renvoie déjà un token : l'utilisateur est connecté directement
+      await register(email, password)
+      navigate('/transactions')
+    } catch (err) {
+      // Message renvoyé par l'API (ex : 409 "Cet email est déjà utilisé")
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -59,7 +72,9 @@ function Registerpage() {
           />
         </label>
         <ErrorMessage message={error} />
-        <button type="submit" className="button button-primary">Créer mon compte</button>
+        <button type="submit" className="button button-primary" disabled={loading}>
+          {loading ? 'Création…' : 'Créer mon compte'}
+        </button>
       </form>
       <p className="auth-switch">
         Déjà un compte ? <Link to="/login">Se connecter</Link>
