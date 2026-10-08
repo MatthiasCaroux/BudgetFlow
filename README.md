@@ -10,13 +10,14 @@ Projet du module **Full Stack JS** (EFREI, Master 1), **sujet C – BudgetFlow**
 2. [Stack et versions](#stack-et-versions)
 3. [Installation](#installation)
 4. [Lancer l'application](#lancer-lapplication)
-5. [Tests et build](#tests-et-build)
-6. [API](#api)
-7. [Architecture](#architecture)
-8. [Choix techniques](#choix-techniques)
-9. [Outillage : Vite, Babel, Webpack et CI](#outillage--vite-babel-webpack-et-ci)
-10. [Limites connues](#limites-connues)
-11. [Équipe](#équipe)
+5. [Tests, lint et build](#tests-lint-et-build)
+6. [Commandes à lancer avant la démo](#commandes-à-lancer-avant-la-démo)
+7. [API](#api)
+8. [Architecture](#architecture)
+9. [Choix techniques](#choix-techniques)
+10. [Outillage : Vite, Babel, Webpack et CI](#outillage--vite-babel-webpack-et-ci)
+11. [Limites connues](#limites-connues)
+12. [Équipe](#équipe)
 
 ## Fonctionnalités
 
@@ -36,6 +37,7 @@ Projet du module **Full Stack JS** (EFREI, Master 1), **sujet C – BudgetFlow**
 | Base de données | MongoDB 7 |
 | Sécurité | bcrypt 6, jsonwebtoken 9, helmet 8, cors |
 | Tests | Jest 30, Supertest 7, mongodb-memory-server 11 |
+| Qualité | ESLint 9 (règles recommandées, plugins React Hooks et React Refresh) |
 | Documentation API | Swagger / OpenAPI 3 (swagger-jsdoc, swagger-ui-express) |
 
 Le dépôt est un **monorepo npm** (workspaces) : `frontend/` et `backend/` sont deux projets indépendants, installés et lancés depuis la racine.
@@ -132,7 +134,7 @@ Autres commandes :
 | `npm run dev --workspace backend` | Lance uniquement l'API, avec rechargement |
 | `npm run dev --workspace frontend` | Lance uniquement le front |
 
-## Tests et build
+## Tests, lint et build
 
 ```bash
 npm test                    # tous les tests (135)
@@ -154,10 +156,79 @@ npm run test:fonctionnels   # tests fonctionnels : appels HTTP sur l'API, MongoD
 Les tests fonctionnels utilisent une **base MongoDB en mémoire**, créée pour l'occasion et vidée entre chaque test : ils ne touchent jamais à la base de développement. Le premier lancement télécharge cette base de test (environ 140 Mo), les suivants sont immédiats.
 
 ```bash
+npm run lint
+```
+
+Analyse tout le code (back, tests et front) avec ESLint, sans l'exécuter : variables non déclarées ou inutilisées, règles des hooks React… La configuration unique est à la racine, dans `eslint.config.js`, avec un bloc par environnement (Node pour le back, Node + Jest pour les tests, navigateur + JSX pour le front). On peut aussi n'analyser qu'une partie avec `npm run lint --workspace backend` ou `--workspace frontend`, et corriger automatiquement ce qui peut l'être avec `npx eslint . --fix`.
+
+**Ce que la configuration ESLint ne couvre pas :**
+
+- **Pas de `eslint-plugin-react`.** ESLint seul ne sait pas qu'un composant utilisé en JSX (`<Link />`) est utilisé. Dans le front, les variables inutilisées dont le nom commence par une majuscule sont donc ignorées (comme dans le modèle officiel de Vite) : un composant importé mais jamais affiché n'est pas signalé. Les règles propres à React (props, `key` dans les listes…) ne sont pas vérifiées non plus.
+- **Pas de règles de style ni de formatage** (indentation, guillemets, points-virgules) : seules les règles recommandées, qui visent les erreurs probables, sont actives. Aucun formateur comme Prettier n'est configuré.
+- **Une règle désactivée sur une ligne** : `react-refresh/only-export-components` pour le hook `useAuth`, exporté dans le même fichier que `AuthProvider` (`frontend/src/context/AuthContext.jsx`). Conséquence limitée au développement : modifier ce fichier recharge toute la page au lieu d'un rechargement à chaud.
+- **Pas d'exécution automatique** : le lint n'est lancé ni avant chaque commit (pas de hook Git), ni par une chaîne d'intégration continue. Il faut lancer `npm run lint` soi-même.
+
+```bash
 npm run build
 ```
 
 Produit la version optimisée du front dans `frontend/dist/`. On peut la prévisualiser avec `npm run preview --workspace frontend`.
+
+## Commandes à lancer avant la démo
+
+À exécuter depuis la racine du projet, dans cet ordre.
+
+**1. Installation et configuration (une seule fois)**
+
+```bash
+npm install                              # dépendances du front et du back
+cp backend/.env.example backend/.env     # puis remplacer JWT_SECRET dans backend/.env
+openssl rand -hex 32                     # génère une valeur pour JWT_SECRET
+```
+
+**2. Vérifications de qualité**
+
+```bash
+npm run lint                             # ESLint sur tout le code : doit n'afficher aucune erreur
+npm test                                 # les 135 tests Jest + Supertest
+npm run build                            # build de production du front
+```
+
+**3. Lancement de l'application**
+
+```bash
+docker compose up -d mongo               # démarre MongoDB (port 27017)
+npm run dev                              # lance l'API (port 3000) et le front (port 5173)
+```
+
+**4. Vérifications rapides avant de présenter**
+
+```bash
+curl http://localhost:3000/api/health    # doit répondre {"status":"ok"}
+git log -1 --format=%H                   # SHA du commit présenté
+```
+
+Puis ouvrir dans le navigateur :
+
+- http://localhost:5173 : l'application (inscription, connexion, CRUD) ;
+- http://localhost:3000/api-docs : la documentation Swagger.
+
+**Pendant la démo**
+
+```bash
+# Montrer que les données survivent à un redémarrage de l'API :
+# arrêter npm run dev (Ctrl+C), le relancer, puis recharger la page
+npm run dev
+
+npm run test:unitaires                   # montrer seulement les tests unitaires
+npm run test:fonctionnels                # montrer seulement les tests de l'API (dont l'isolation A/B)
+```
+
+**Après la démo**
+
+```bash
+docker compose down                      # arrête MongoDB (les données restent dans le volume)
+```
 
 ## API
 
@@ -296,7 +367,7 @@ Dockerfile, nginx.conf   Image de production du front, servie par nginx
 - **Vite** sert l'application en développement (démarrage instantané, rechargement à chaud) et produit le build de production. Son proxy redirige `/api` vers l'API : le front n'a pas besoin de connaître l'adresse du back.
 - **Babel** est un *transpileur* : il transforme le JSX et le JavaScript récent en code que tous les navigateurs comprennent. Vite utilise esbuild, un outil équivalent beaucoup plus rapide, pour ce même rôle.
 - **Webpack** est un *bundler* : il rassemble les nombreux fichiers d'une application en quelques fichiers optimisés. C'est l'outil historique, que Vite remplace ici (Vite s'appuie sur Rollup pour le build de production).
-- **Intégration continue.** Dans une chaîne CI/CD, chaque push déclencherait : `npm ci`, puis `npm run test:unitaires` (rapide), `npm run test:fonctionnels`, puis `npm run build` et la construction des images Docker. Le déploiement n'aurait lieu que si toutes les étapes réussissent. Les tests utilisant une base en mémoire, ils tournent sans aucune base de données à installer.
+- **Intégration continue.** Dans une chaîne CI/CD, chaque push déclencherait : `npm ci`, puis `npm run lint` (quelques secondes, attrape les erreurs les plus simples), `npm run test:unitaires` (rapide), `npm run test:fonctionnels`, puis `npm run build` et la construction des images Docker. Le déploiement n'aurait lieu que si toutes les étapes réussissent. Les tests utilisant une base en mémoire, ils tournent sans aucune base de données à installer.
 
 ## Limites connues
 
@@ -306,7 +377,6 @@ Dockerfile, nginx.conf   Image de production du front, servie par nginx
 - Un token reste valable jusqu'à son expiration, même après une déconnexion : il n'existe pas de liste de révocation.
 - Pas de pagination : toutes les transactions du compte sont chargées en une fois.
 - Pas de modification de l'email, du mot de passe ni de suppression de compte.
-- Pas de linter (ESLint) configuré à ce jour.
 
 ## Équipe
 
