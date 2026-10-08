@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { CATEGORIES } from '../validators/transactionValidator.js';
 
 const transactionSchema = new mongoose.Schema({
   label: {
@@ -17,6 +18,12 @@ const transactionSchema = new mongoose.Schema({
     type: String,
     enum: ['income', 'expense'],
     required: true,
+  },
+  // Bonus B1 : catégorie choisie dans une liste fermée
+  category: {
+    type: String,
+    enum: CATEGORIES,
+    default: 'other',
   },
   // En centimes : 12345 = 123,45 €. Un entier évite les erreurs d'arrondi (0.1 + 0.2)
   amount: {

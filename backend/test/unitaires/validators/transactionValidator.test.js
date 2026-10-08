@@ -1,4 +1,4 @@
-import { validateTransactionCreate, validateTransactionPatch } from '../../../src/validators/transactionValidator.js';
+import { validateTransactionCreate, validateTransactionPatch, validateTransactionFilters } from '../../../src/validators/transactionValidator.js';
 
 const valid = { label: 'Courses', amount: 12345, type: 'expense', date: '2026-10-05' };
 
@@ -9,6 +9,11 @@ describe('validateTransactionCreate', () => {
 
     test('accepte une description facultative', () => {
         const body = { ...valid, description: 'Supermarché' };
+        expect(validateTransactionCreate(body)).toEqual({ data: body });
+    });
+
+    test('accepte une catégorie de la liste', () => {
+        const body = { ...valid, category: 'food' };
         expect(validateTransactionCreate(body)).toEqual({ data: body });
     });
 
@@ -39,6 +44,8 @@ describe('validateTransactionCreate', () => {
         ['date impossible', { date: '2026-02-30' }],
         ['description trop longue', { description: 'a'.repeat(1001) }],
         ['champ inconnu', { color: 'red' }],
+        ['catégorie hors liste', { category: 'casino' }],
+        ['catégorie qui n\'est pas un texte', { category: 1 }],
         ['ownerId fourni par le client', { ownerId: '66f1c2a4e1b2c3d4e5f60719' }],
     ])('refuse : %s', (_label, override) => {
         const result = validateTransactionCreate({ ...valid, ...override });
@@ -66,5 +73,30 @@ describe('validateTransactionPatch', () => {
 
     test('refuse un corps qui n\'est pas un objet', () => {
         expect(validateTransactionPatch(null)).toEqual({ error: 'Le corps de la requête doit être un objet JSON' });
+    });
+});
+
+describe('validateTransactionFilters', () => {
+    test('aucun filtre', () => {
+        expect(validateTransactionFilters({})).toEqual({ data: { type: undefined, category: undefined, from: undefined, to: undefined } });
+    });
+
+    test('accepte des filtres valides', () => {
+        const query = { type: 'expense', category: 'food', from: '2026-10-01', to: '2026-10-31' };
+        expect(validateTransactionFilters(query)).toEqual({ data: query });
+    });
+
+    test('accepte from égal à to (un seul jour)', () => {
+        expect(validateTransactionFilters({ from: '2026-10-05', to: '2026-10-05' }).error).toBeUndefined();
+    });
+
+    test.each([
+        ['type inconnu', { type: 'debit' }],
+        ['catégorie inconnue', { category: 'casino' }],
+        ['from impossible', { from: '2026-02-30' }],
+        ['to mal formé', { to: '2026-1-5' }],
+        ['from après to', { from: '2026-10-05', to: '2026-10-01' }],
+    ])('refuse : %s', (_cas, query) => {
+        expect(validateTransactionFilters(query).error).toEqual(expect.any(String));
     });
 });

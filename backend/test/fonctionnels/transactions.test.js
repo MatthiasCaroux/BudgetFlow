@@ -87,7 +87,8 @@ describe('POST : entrées refusées avec 400 INVALID_INPUT', () => {
         ['date au mauvais format', { date: '05/10/2026' }],
         ['ownerId fourni par le client', { ownerId: new mongoose.Types.ObjectId().toString() }],
         ['id fourni par le client', { id: 'abc' }],
-        ['champ inconnu', { category: 'food' }],
+        ['champ inconnu', { color: 'red' }],
+        ['catégorie hors liste', { category: 'casino' }],
     ])('%s', async (_cas, override) => {
         const response = await api.create({ ...validTransaction, ...override });
 
@@ -131,7 +132,8 @@ describe('PATCH : entrées refusées avec 400', () => {
 
     test.each([
         ['corps vide {}', {}],
-        ['champ inconnu', { category: 'food' }],
+        ['champ inconnu', { color: 'red' }],
+        ['catégorie hors liste', { category: 'casino' }],
         ['ownerId', { ownerId: new mongoose.Types.ObjectId().toString() }],
         ['id', { id: 'abc' }],
         ['montant invalide', { amount: -1 }],
@@ -195,6 +197,75 @@ describe('Liste', () => {
     test('filtre de type invalide → 400', async () => {
         const response = await request(app).get('/api/transactions?type=debit').set('Authorization', `Bearer ${token}`);
         expect(response.status).toBe(400);
+    });
+});
+
+describe('Bonus B1 : catégories et filtres', () => {
+    const list = (query) => request(app).get(`/api/transactions?${query}`).set('Authorization', `Bearer ${token}`);
+    const labels = (response) => response.body.items.map((t) => t.label);
+
+    test('sans catégorie, la transaction est classée dans "other"', async () => {
+        const created = await api.create(validTransaction);
+
+        expect(created.status).toBe(201);
+        expect(created.body.category).toBe('other');
+    });
+
+    test('la catégorie est enregistrée à la création et modifiable par PATCH', async () => {
+        const created = await api.create({ ...validTransaction, category: 'food' });
+        expect(created.body.category).toBe('food');
+
+        const patched = await api.patch(created.body.id, { category: 'leisure' });
+        expect(patched.status).toBe(200);
+        expect(patched.body).toMatchObject({ ...validTransaction, category: 'leisure' });
+    });
+
+    describe('filtres de la liste', () => {
+        beforeEach(async () => {
+            await api.create({ ...validTransaction, label: 'Courses', category: 'food', date: '2026-09-28' });
+            await api.create({ ...validTransaction, label: 'Restaurant', category: 'food', date: '2026-10-05' });
+            await api.create({ ...validTransaction, label: 'Cinéma', category: 'leisure', date: '2026-10-02' });
+            await api.create({ ...validTransaction, label: 'Salaire', type: 'income', category: 'salary', date: '2026-10-01' });
+        });
+
+        test('par catégorie', async () => {
+            expect(labels(await list('category=food'))).toEqual(['Restaurant', 'Courses']);
+        });
+
+        test('par période, bornes incluses', async () => {
+            expect(labels(await list('from=2026-10-01&to=2026-10-02'))).toEqual(['Cinéma', 'Salaire']);
+        });
+
+        test('filtres combinés type + catégorie + date', async () => {
+            expect(labels(await list('type=expense&category=food&from=2026-10-01'))).toEqual(['Restaurant']);
+        });
+
+        test('aucun résultat → {"items":[]}', async () => {
+            const response = await list('category=health');
+
+            expect(response.status).toBe(200);
+            expect(response.body).toEqual({ items: [] });
+        });
+    });
+
+    test.each([
+        ['catégorie hors liste', 'category=casino'],
+        ['date impossible', 'from=2026-02-30'],
+        ['date au mauvais format', 'to=05/10/2026'],
+        ['from après to', 'from=2026-10-05&to=2026-10-01'],
+    ])('filtre invalide → 400 : %s', async (_cas, query) => {
+        const response = await list(query);
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.code).toBe('INVALID_INPUT');
+    });
+
+    test('le filtre par catégorie ne renvoie pas les transactions d\'un autre compte', async () => {
+        await api.create({ ...validTransaction, category: 'food' });
+        const { token: tokenB } = await createUserAndToken('bob@example.test');
+
+        const response = await request(app).get('/api/transactions?category=food').set('Authorization', `Bearer ${tokenB}`);
+        expect(response.body).toEqual({ items: [] });
     });
 });
 

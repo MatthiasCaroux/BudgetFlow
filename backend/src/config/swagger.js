@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import swaggerJsdoc from 'swagger-jsdoc';
+import { CATEGORIES } from '../validators/transactionValidator.js';
 
 // Le motif glob de swagger-jsdoc exige des "/", y compris sous Windows
 const currentDir = path.dirname(fileURLToPath(import.meta.url)).replaceAll('\\', '/');
@@ -55,6 +56,7 @@ const options = {
             type: { type: 'string', enum: ['income', 'expense'], example: 'expense' },
             date: { type: 'string', format: 'date', example: '2026-10-05' },
             description: { type: 'string', maxLength: 1000, description: 'Facultative', example: 'Supermarché du coin' },
+            category: { type: 'string', enum: CATEGORIES, description: 'Facultative (bonus B1), "other" par défaut', example: 'food' },
           },
         },
         TransactionPatch: {
@@ -68,6 +70,7 @@ const options = {
             type: { type: 'string', enum: ['income', 'expense'] },
             date: { type: 'string', format: 'date' },
             description: { type: 'string', maxLength: 1000 },
+            category: { type: 'string', enum: CATEGORIES },
           },
           example: { amount: 9900 },
         },
@@ -80,6 +83,7 @@ const options = {
             type: { type: 'string', enum: ['income', 'expense'], example: 'expense' },
             date: { type: 'string', format: 'date', example: '2026-10-05' },
             description: { type: 'string', example: 'Supermarché du coin' },
+            category: { type: 'string', enum: CATEGORIES, example: 'food' },
             ownerId: { type: 'string', example: '66f1c2a4e1b2c3d4e5f60719' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },

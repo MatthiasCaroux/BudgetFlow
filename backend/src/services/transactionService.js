@@ -2,9 +2,16 @@ import { Transaction } from "../models/Transaction.js";
 
 // Chaque requête filtre sur ownerId : la transaction d'un autre compte est introuvable (404)
 
-export function listTransactions (ownerId, { type } = {}){
+export function listTransactions (ownerId, { type, category, from, to } = {}){
     const filter = { ownerId };
     if (type) filter.type = type;
+    // Les transactions créées avant l'ajout des catégories n'ont pas le champ : elles comptent comme "other"
+    if (category) filter.category = category === 'other' ? { $in: ['other', null] } : category;
+    if (from || to) {
+        filter.date = {};
+        if (from) filter.date.$gte = from;
+        if (to) filter.date.$lte = to;
+    }
     return Transaction.find(filter).sort({ date: -1, createdAt: -1 });
 };
 

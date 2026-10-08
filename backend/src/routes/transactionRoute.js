@@ -24,6 +24,27 @@ transactionRouter.use(requireAuth);
  *         schema:
  *           type: string
  *           enum: [income, expense]
+ *       - in: query
+ *         name: category
+ *         required: false
+ *         description: Filtre sur la catégorie (bonus B1)
+ *         schema:
+ *           type: string
+ *           enum: [food, housing, transport, health, leisure, shopping, bills, salary, other]
+ *       - in: query
+ *         name: from
+ *         required: false
+ *         description: Date de début incluse (AAAA-MM-JJ)
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: to
+ *         required: false
+ *         description: Date de fin incluse (AAAA-MM-JJ), postérieure ou égale à from
+ *         schema:
+ *           type: string
+ *           format: date
  *     responses:
  *       200:
  *         description: Liste des transactions

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import * as transactionService from "../services/transactionService.js";
-import { validateTransactionCreate, validateTransactionPatch, TRANSACTION_TYPES } from "../validators/transactionValidator.js";
+import { validateTransactionCreate, validateTransactionPatch, validateTransactionFilters } from "../validators/transactionValidator.js";
 import { invalidInput, notFound } from "../errors/AppError.js";
 
 // Les erreurs sont lancées (throw) : errorHandler les transforme en réponse JSON
@@ -17,11 +17,9 @@ function transactionNotFound() {
 }
 
 export async function getAllTransactions(request, response) {
-  const { type } = request.query;
-  if (type !== undefined && !TRANSACTION_TYPES.includes(type)) {
-    throw invalidInput('Le filtre type doit être "income" ou "expense"');
-  }
-  const transactions = await transactionService.listTransactions(request.userId, { type });
+  const { error, data } = validateTransactionFilters(request.query);
+  if (error) throw invalidInput(error);
+  const transactions = await transactionService.listTransactions(request.userId, data);
   response.status(200).json({ items: transactions });
 }
 
