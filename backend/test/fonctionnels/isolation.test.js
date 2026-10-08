@@ -3,8 +3,8 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import app from '../../src/app.js';
 import { Transaction } from '../../src/models/Transaction.js';
-import { connectTestDB, clearTestDB, closeTestDB } from '../helpers/db.js';
-import { createUserAndToken } from '../helpers/auth.js';
+import { connectTestDB, clearTestDB, closeTestDB } from '../outils/db.js';
+import { createUserAndToken } from '../outils/auth.js';
 
 beforeAll(connectTestDB);
 afterEach(clearTestDB);

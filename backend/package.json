@@ -7,8 +7,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest test/unit",
-    "test:functional": "cross-env NODE_OPTIONS=--experimental-vm-modules jest test/functional"
+    "test:unitaires": "cross-env NODE_OPTIONS=--experimental-vm-modules jest test/unitaires",
+    "test:fonctionnels": "cross-env NODE_OPTIONS=--experimental-vm-modules jest test/fonctionnels"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

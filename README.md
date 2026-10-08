@@ -135,14 +135,14 @@ Autres commandes :
 ## Tests et build
 
 ```bash
-npm test                  # tous les tests (135)
-npm run test:unit         # tests unitaires : fonctions isolées, sans base de données
-npm run test:functional   # tests fonctionnels : appels HTTP sur l'API, MongoDB en mémoire
+npm test                    # tous les tests (135)
+npm run test:unitaires      # tests unitaires : fonctions isolées, sans base de données
+npm run test:fonctionnels   # tests fonctionnels : appels HTTP sur l'API, MongoDB en mémoire
 ```
 
-**Tests unitaires** (`backend/test/unit/`) : validateurs (auth et transactions), vérification des dates, classe `AppError` et gestionnaire d'erreurs, testés sans serveur ni base.
+**Tests unitaires** (`backend/test/unitaires/`) : validateurs (auth et transactions), vérification des dates, classe `AppError` et gestionnaire d'erreurs, testés sans serveur ni base.
 
-**Tests fonctionnels** (`backend/test/functional/`), avec Jest + Supertest :
+**Tests fonctionnels** (`backend/test/fonctionnels/`), avec Jest + Supertest :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -244,9 +244,9 @@ src/
 ├── models/           User, Transaction
 └── utils/            dates (vérification des dates réelles)
 test/
-├── unit/             Tests unitaires (validateurs, dates, erreurs)
-├── functional/       Tests de l'API par HTTP (Supertest + MongoDB en mémoire)
-└── helpers/          Base de test en mémoire, création d'utilisateurs, variables de test
+├── unitaires/        Tests unitaires (validateurs, dates, erreurs)
+├── fonctionnels/     Tests de l'API par HTTP (Supertest + MongoDB en mémoire)
+└── outils/           Base de test en mémoire, création d'utilisateurs, variables de test
 Dockerfile            Image de l'API
 ```
 
@@ -296,7 +296,7 @@ Dockerfile, nginx.conf   Image de production du front, servie par nginx
 - **Vite** sert l'application en développement (démarrage instantané, rechargement à chaud) et produit le build de production. Son proxy redirige `/api` vers l'API : le front n'a pas besoin de connaître l'adresse du back.
 - **Babel** est un *transpileur* : il transforme le JSX et le JavaScript récent en code que tous les navigateurs comprennent. Vite utilise esbuild, un outil équivalent beaucoup plus rapide, pour ce même rôle.
 - **Webpack** est un *bundler* : il rassemble les nombreux fichiers d'une application en quelques fichiers optimisés. C'est l'outil historique, que Vite remplace ici (Vite s'appuie sur Rollup pour le build de production).
-- **Intégration continue.** Dans une chaîne CI/CD, chaque push déclencherait : `npm ci`, puis `npm run test:unit` (rapide), `npm run test:functional`, puis `npm run build` et la construction des images Docker. Le déploiement n'aurait lieu que si toutes les étapes réussissent. Les tests utilisant une base en mémoire, ils tournent sans aucune base de données à installer.
+- **Intégration continue.** Dans une chaîne CI/CD, chaque push déclencherait : `npm ci`, puis `npm run test:unitaires` (rapide), `npm run test:fonctionnels`, puis `npm run build` et la construction des images Docker. Le déploiement n'aurait lieu que si toutes les étapes réussissent. Les tests utilisant une base en mémoire, ils tournent sans aucune base de données à installer.
 
 ## Limites connues
 

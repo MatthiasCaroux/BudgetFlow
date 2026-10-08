@@ -1,5 +1,5 @@
 {
-  "name": "fullstack-js-starter",
+  "name": "budgetflow",
   "private": true,
   "version": "1.0.0",
   "workspaces": [
@@ -11,8 +11,8 @@
     "build": "npm run build --workspace frontend",
     "start": "npm run start --workspace backend",
     "test": "npm run test --workspace backend",
-    "test:unit": "npm run test:unit --workspace backend",
-    "test:functional": "npm run test:functional --workspace backend"
+    "test:unitaires": "npm run test:unitaires --workspace backend",
+    "test:fonctionnels": "npm run test:fonctionnels --workspace backend"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
