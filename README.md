@@ -6,18 +6,138 @@ Projet du module **Full Stack JS** (EFREI, Master 1), **sujet C – BudgetFlow**
 
 ## Sommaire
 
-1. [Fonctionnalités](#fonctionnalités)
-2. [Stack et versions](#stack-et-versions)
-3. [Installation](#installation)
-4. [Lancer l'application](#lancer-lapplication)
-5. [Tests, lint et build](#tests-lint-et-build)
-6. [Commandes à lancer avant la démo](#commandes-à-lancer-avant-la-démo)
+1. [Démo](#démo)
+2. [Fonctionnalités](#fonctionnalités)
+3. [Stack et versions](#stack-et-versions)
+4. [Installation](#installation)
+5. [Lancer l'application](#lancer-lapplication)
+6. [Tests, lint et build](#tests-lint-et-build)
 7. [API](#api)
 8. [Architecture](#architecture)
 9. [Choix techniques](#choix-techniques)
 10. [Outillage : Vite, Babel, Webpack et CI](#outillage--vite-babel-webpack-et-ci)
 11. [Limites connues](#limites-connues)
 12. [Équipe](#équipe)
+
+## Démo
+
+Toutes les commandes sont à lancer **depuis la racine du projet**, dans l'ordre.
+
+### 1. Préparer (une seule fois)
+
+```bash
+npm install                              # dépendances du front et du back
+cp backend/.env.example backend/.env     # fichier de configuration de l'API
+openssl rand -hex 32                     # copier le résultat dans JWT_SECRET (backend/.env)
+```
+
+### 2. Vérifier la qualité
+
+```bash
+npm run lint                             # ESLint : aucune erreur attendue
+npm test                                 # les 135 tests Jest + Supertest
+npm run build                            # build de production du front
+git log -1 --format=%H                   # SHA du commit présenté
+```
+
+### 3. Lancer l'application
+
+```bash
+docker compose up -d mongo               # MongoDB sur le port 27017
+npm run dev                              # API (port 3000) + front (port 5173)
+```
+
+Dans un **second terminal** :
+
+```bash
+curl http://localhost:3000/api/health    # doit répondre {"status":"ok"}
+```
+
+| À ouvrir | Adresse |
+|---|---|
+| Application | http://localhost:5173 |
+| Documentation Swagger | http://localhost:3000/api-docs |
+
+### 4. Démonstration dans le navigateur
+
+1. **Inscription** du compte A, puis déconnexion et **connexion**.
+2. **Ajout** d'un revenu et d'une dépense : les montants s'affichent en euros (`12345` centimes → `123,45 €`) et le solde se met à jour.
+3. **Détail** d'une transaction, **modification**, puis **suppression** avec confirmation.
+4. Saisie invalide (libellé vide, montant à 0) : message d'erreur lisible.
+5. **Compte B** dans une fenêtre de navigation privée : sa liste est vide, il ne voit rien du compte A.
+6. **Persistance** : arrêter `npm run dev` (Ctrl+C), le relancer, recharger la page : les transactions sont toujours là.
+
+### 5. Démonstration de l'API (sécurité et contrat)
+
+À coller dans le second terminal, bloc par bloc. Les emails contiennent l'heure pour pouvoir relancer la démo sans conflit.
+
+```bash
+API=http://localhost:3000/api
+N=$(date +%s)
+
+# Inscription des comptes A et B (201) : on récupère leur JWT
+TOKEN_A=$(curl -s -X POST $API/auth/register -H 'Content-Type: application/json' \
+  -d "{\"email\":\"a$N@example.test\",\"password\":\"MotDePasse123!\"}" | sed -E 's/.*"token":"([^"]+)".*/\1/')
+TOKEN_B=$(curl -s -X POST $API/auth/register -H 'Content-Type: application/json' \
+  -d "{\"email\":\"b$N@example.test\",\"password\":\"MotDePasse123!\"}" | sed -E 's/.*"token":"([^"]+)".*/\1/')
+
+# A crée une transaction (201) et on garde son id
+ID=$(curl -s -X POST $API/transactions -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' \
+  -d '{"label":"Courses","amount":12345,"type":"expense","date":"2026-10-05"}' | sed -E 's/.*"id":"([^"]+)".*/\1/')
+echo "Transaction de A : $ID"
+```
+
+```bash
+# A liste ses transactions (200, enveloppe {"items":[...]})
+curl -s $API/transactions -H "Authorization: Bearer $TOKEN_A"; echo
+
+# B ne voit rien (200, {"items":[]}) et reçoit 404 sur la transaction de A
+curl -s $API/transactions -H "Authorization: Bearer $TOKEN_B"; echo
+curl -s -w ' → %{http_code}\n' $API/transactions/$ID -H "Authorization: Bearer $TOKEN_B"
+curl -s -w ' → %{http_code}\n' -X PATCH $API/transactions/$ID -H "Authorization: Bearer $TOKEN_B" \
+  -H 'Content-Type: application/json' -d '{"label":"Piraté"}'
+curl -s -w ' → %{http_code}\n' -X DELETE $API/transactions/$ID -H "Authorization: Bearer $TOKEN_B"
+
+# Sans JWT ou avec un JWT falsifié : 401
+curl -s -w ' → %{http_code}\n' $API/transactions
+curl -s -w ' → %{http_code}\n' $API/transactions -H 'Authorization: Bearer faux.jeton.jwt'
+
+# Entrées invalides : 400 (montant décimal, ownerId envoyé par le client, id mal formé)
+curl -s -w ' → %{http_code}\n' -X POST $API/transactions -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -d '{"label":"Courses","amount":12.34,"type":"expense","date":"2026-10-05"}'
+curl -s -w ' → %{http_code}\n' -X PATCH $API/transactions/$ID -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -d '{"ownerId":"507f1f77bcf86cd799439011"}'
+curl -s -w ' → %{http_code}\n' $API/transactions/pas-un-id -H "Authorization: Bearer $TOKEN_A"
+
+# A modifie (200), supprime (204), puis la transaction n'existe plus (404)
+curl -s -w ' → %{http_code}\n' -X PATCH $API/transactions/$ID -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -d '{"amount":5000}'
+curl -s -w ' → %{http_code}\n' -X DELETE $API/transactions/$ID -H "Authorization: Bearer $TOKEN_A"
+curl -s -w ' → %{http_code}\n' $API/transactions/$ID -H "Authorization: Bearer $TOKEN_A"
+
+# Email déjà utilisé (409) et mauvais mot de passe (401)
+curl -s -w ' → %{http_code}\n' -X POST $API/auth/register -H 'Content-Type: application/json' \
+  -d "{\"email\":\"a$N@example.test\",\"password\":\"MotDePasse123!\"}"
+curl -s -w ' → %{http_code}\n' -X POST $API/auth/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"a$N@example.test\",\"password\":\"mauvais-mdp\"}"
+```
+
+Les mêmes appels peuvent être faits depuis **Swagger** (http://localhost:3000/api-docs) : bouton **Authorize**, coller le token, puis **Try it out** sur une route.
+
+### 6. Montrer les tests
+
+```bash
+npm run test:unitaires                   # validateurs, dates, gestion des erreurs (sans base)
+npm run test:fonctionnels                # appels HTTP sur l'API, dont l'isolation A/B
+```
+
+Le test d'isolation est dans `backend/test/fonctionnels/isolation.test.js` : si on retire le filtre `ownerId` dans `backend/src/services/transactionService.js`, il échoue.
+
+### 7. Après la démo
+
+```bash
+docker compose down                      # arrête MongoDB (les données restent dans le volume)
+```
 
 ## Fonctionnalités
 
@@ -173,62 +293,6 @@ npm run build
 ```
 
 Produit la version optimisée du front dans `frontend/dist/`. On peut la prévisualiser avec `npm run preview --workspace frontend`.
-
-## Commandes à lancer avant la démo
-
-À exécuter depuis la racine du projet, dans cet ordre.
-
-**1. Installation et configuration (une seule fois)**
-
-```bash
-npm install                              # dépendances du front et du back
-cp backend/.env.example backend/.env     # puis remplacer JWT_SECRET dans backend/.env
-openssl rand -hex 32                     # génère une valeur pour JWT_SECRET
-```
-
-**2. Vérifications de qualité**
-
-```bash
-npm run lint                             # ESLint sur tout le code : doit n'afficher aucune erreur
-npm test                                 # les 135 tests Jest + Supertest
-npm run build                            # build de production du front
-```
-
-**3. Lancement de l'application**
-
-```bash
-docker compose up -d mongo               # démarre MongoDB (port 27017)
-npm run dev                              # lance l'API (port 3000) et le front (port 5173)
-```
-
-**4. Vérifications rapides avant de présenter**
-
-```bash
-curl http://localhost:3000/api/health    # doit répondre {"status":"ok"}
-git log -1 --format=%H                   # SHA du commit présenté
-```
-
-Puis ouvrir dans le navigateur :
-
-- http://localhost:5173 : l'application (inscription, connexion, CRUD) ;
-- http://localhost:3000/api-docs : la documentation Swagger.
-
-**Pendant la démo**
-
-```bash
-# Montrer que les données survivent à un redémarrage de l'API :
-# arrêter npm run dev (Ctrl+C), le relancer, puis recharger la page
-npm run dev
-
-npm run test:unitaires                   # montrer seulement les tests unitaires
-npm run test:fonctionnels                # montrer seulement les tests de l'API (dont l'isolation A/B)
-```
-
-**Après la démo**
-
-```bash
-docker compose down                      # arrête MongoDB (les données restent dans le volume)
-```
 
 ## API
 
