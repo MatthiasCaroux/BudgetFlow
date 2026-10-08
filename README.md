@@ -124,12 +124,16 @@ curl -s -w ' → %{http_code}\n' -X POST $API/auth/login -H 'Content-Type: appli
 
 Les mêmes appels peuvent être faits depuis **Swagger** (http://localhost:3000/api-docs) : bouton **Authorize**, coller le token, puis **Try it out** sur une route.
 
-### 6. Montrer les tests
+### 6. Montrer les tests et la couverture
 
 ```bash
-npm run test:unitaires                   # validateurs, dates, gestion des erreurs (sans base)
-npm run test:fonctionnels                # appels HTTP sur l'API, dont l'isolation A/B
+npm test                                 # toute la suite : 135 tests Jest + Supertest
+npm run test:unitaires                   # tests unitaires : validateurs, dates, gestion des erreurs (sans base)
+npm run test:fonctionnels                # tests fonctionnels : appels HTTP sur l'API, dont l'isolation A/B
+npm run test:coverage                    # toute la suite + tableau de couverture du code (environ 98 %)
 ```
+
+Le rapport de couverture s'affiche dans le terminal. Une version HTML détaillée, fichier par fichier, est générée dans `backend/coverage/lcov-report/index.html` (dossier ignoré par Git) : on peut l'ouvrir dans le navigateur pour montrer les lignes testées.
 
 Le test d'isolation est dans `backend/test/fonctionnels/isolation.test.js` : si on retire le filtre `ownerId` dans `backend/src/services/transactionService.js`, il échoue.
 
@@ -156,7 +160,7 @@ docker compose down                      # arrête MongoDB (les données restent
 | Back-end | Express 5, Mongoose 9 |
 | Base de données | MongoDB 7 |
 | Sécurité | bcrypt 6, jsonwebtoken 9, helmet 8, cors |
-| Tests | Jest 30, Supertest 7, mongodb-memory-server 11 |
+| Tests | Jest 30 (couverture V8), Supertest 7, mongodb-memory-server 11 |
 | Qualité | ESLint 9 (règles recommandées, plugins React Hooks et React Refresh) |
 | Documentation API | Swagger / OpenAPI 3 (swagger-jsdoc, swagger-ui-express) |
 
@@ -260,6 +264,7 @@ Autres commandes :
 npm test                    # tous les tests (135)
 npm run test:unitaires      # tests unitaires : fonctions isolées, sans base de données
 npm run test:fonctionnels   # tests fonctionnels : appels HTTP sur l'API, MongoDB en mémoire
+npm run test:coverage       # tous les tests + taux de couverture du code de backend/src
 ```
 
 **Tests unitaires** (`backend/test/unitaires/`) : validateurs (auth et transactions), vérification des dates, classe `AppError` et gestionnaire d'erreurs, testés sans serveur ni base.
