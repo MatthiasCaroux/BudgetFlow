@@ -109,6 +109,8 @@ export function AuthProvider({ children }) {
 }
 
 // Dans un composant : const { user, token, login, logout } = useAuth();
+// Hook exporté à côté du composant : modifier ce fichier recharge la page au lieu du rechargement à chaud
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     return useContext(AuthContext);
 }

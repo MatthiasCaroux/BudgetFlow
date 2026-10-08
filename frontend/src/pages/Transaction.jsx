@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import TransactionModal from '../components/TransactionModal.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
@@ -32,23 +32,34 @@ export default function Transaction() {
     // Message de confirmation transmis par une autre page (ex : après une suppression)
     const [notice, setNotice] = useState(location.state?.notice ?? '');
 
-    const loadTransactions = useCallback(async () => {
+    // Incrémenté par « Réessayer » pour relancer le chargement
+    const [reloadCount, setReloadCount] = useState(0);
+
+    // Charger la liste au premier affichage de la page (et à chaque « Réessayer »).
+    // L'état n'est modifié qu'à la réponse de l'API, et ignoré si la page a changé entre-temps
+    useEffect(() => {
+        let isCurrent = true;
+        listTransactions(token)
+            .then((items) => {
+                if (!isCurrent) return;
+                setTransactions(items);
+                setError('');
+            })
+            .catch((err) => {
+                // Un 401 est déjà géré : la session se termine et on revient à la connexion
+                if (isCurrent && err.status !== 401) setError(err.message);
+            })
+            .finally(() => {
+                if (isCurrent) setIsLoading(false);
+            });
+        return () => { isCurrent = false; };
+    }, [token, reloadCount]);
+
+    const reloadTransactions = () => {
         setIsLoading(true);
         setError('');
-        try {
-            setTransactions(await listTransactions(token));
-        } catch (err) {
-            // Un 401 est déjà géré : la session se termine et on revient à la connexion
-            if (err.status !== 401) setError(err.message);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [token]);
-
-    // Charger la liste au premier affichage de la page
-    useEffect(() => {
-        loadTransactions();
-    }, [loadTransactions]);
+        setReloadCount((count) => count + 1);
+    };
 
     // Le message de confirmation ne doit pas réapparaître si on recharge la page
     useEffect(() => {
@@ -103,7 +114,7 @@ export default function Transaction() {
             ) : error ? (
                 <div className="error-state">
                     <ErrorMessage message={error} />
-                    <button className="button button-secondary" onClick={loadTransactions}>Réessayer</button>
+                    <button className="button button-secondary" onClick={reloadTransactions}>Réessayer</button>
                 </div>
             ) : transactions.length === 0 ? (
                 <div className="empty-state">

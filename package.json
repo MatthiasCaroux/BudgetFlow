@@ -2,6 +2,7 @@
   "name": "budgetflow",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "workspaces": [
     "frontend",
     "backend"
@@ -12,9 +13,15 @@
     "start": "npm run start --workspace backend",
     "test": "npm run test --workspace backend",
     "test:unitaires": "npm run test:unitaires --workspace backend",
-    "test:fonctionnels": "npm run test:fonctionnels --workspace backend"
+    "test:fonctionnels": "npm run test:fonctionnels --workspace backend",
+    "lint": "eslint ."
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "@eslint/js": "^9.39.5",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0"
   }
 }
