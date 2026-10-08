@@ -26,7 +26,7 @@ Projet du module **Full Stack JS** (EFREI, Master 1), **sujet C – BudgetFlow**
 
 Toutes les commandes sont à lancer **depuis la racine du projet**, dans l'ordre.
 
-### 1. Préparer (une seule fois)
+### Préparer (une seule fois)
 
 ```bash
 npm install                              # dépendances du front et du back
@@ -34,7 +34,7 @@ cp backend/.env.example backend/.env     # fichier de configuration de l'API
 openssl rand -hex 32                     # copier le résultat dans JWT_SECRET (backend/.env)
 ```
 
-### 2. Vérifier la qualité
+### Vérifier la qualité
 
 ```bash
 npm run lint                             # ESLint : aucune erreur attendue
@@ -43,7 +43,7 @@ npm run build                            # build de production du front
 git log -1 --format=%H                   # SHA du commit présenté
 ```
 
-### 3. Lancer l'application
+### Lancer l'application
 
 ```bash
 docker compose up -d mongo               # MongoDB sur le port 27017
@@ -61,7 +61,7 @@ curl http://localhost:3000/api/health    # doit répondre {"status":"ok"}
 | Application | http://localhost:5173 |
 | Documentation Swagger | http://localhost:3000/api-docs |
 
-### 4. Démonstration dans le navigateur
+### Démonstration dans le navigateur
 
 1. **Inscription** du compte A, puis déconnexion et **connexion**.
 2. **Ajout** d'un revenu et d'une dépense : les montants s'affichent en euros (`12345` centimes → `123,45 €`) et le solde se met à jour.
@@ -70,7 +70,7 @@ curl http://localhost:3000/api/health    # doit répondre {"status":"ok"}
 5. **Compte B** dans une fenêtre de navigation privée : sa liste est vide, il ne voit rien du compte A.
 6. **Persistance** : arrêter `npm run dev` (Ctrl+C), le relancer, recharger la page : les transactions sont toujours là.
 
-### 5. Démonstration de l'API (sécurité et contrat)
+### Démonstration de l'API (sécurité et contrat)
 
 À coller dans le second terminal, bloc par bloc. Les emails contiennent l'heure pour pouvoir relancer la démo sans conflit.
 
@@ -127,7 +127,7 @@ curl -s -w ' → %{http_code}\n' -X POST $API/auth/login -H 'Content-Type: appli
 
 Les mêmes appels peuvent être faits depuis **Swagger** (http://localhost:3000/api-docs) : bouton **Authorize**, coller le token, puis **Try it out** sur une route.
 
-### 6. Montrer les tests et la couverture
+### Montrer les tests et la couverture
 
 ```bash
 npm test                                 # toute la suite : 135 tests Jest + Supertest
@@ -140,7 +140,7 @@ Le rapport de couverture s'affiche dans le terminal. Une version HTML détaillé
 
 Le test d'isolation est dans `backend/test/fonctionnels/isolation.test.js` : si on retire le filtre `ownerId` dans `backend/src/services/transactionService.js`, il échoue.
 
-### 7. Après la démo
+### Après la démo
 
 ```bash
 docker compose down                      # arrête MongoDB (les données restent dans le volume)
@@ -642,7 +642,7 @@ Pas besoin de service MongoDB dans la CI, puisque les tests fonctionnels utilise
 - Le solde affiché est calculé dans le front à partir de la liste, il n'y a pas de route dédiée.
 - Pas de tests automatisés côté front, seulement des tests manuels dans le navigateur.
 - Pas de modification ni de suppression du compte utilisateur.
-- Une seule devise (€)
+- Une seule devise (€).
 
 ## 15. Équipe
 
@@ -650,3 +650,5 @@ Pas besoin de service MongoDB dans la CI, puisque les tests fonctionnels utilise
 |---|---|
 | Nabila | Comptes et sécurité : inscription, connexion, JWT, protection des routes, session côté React, tests d'authentification et d'isolation |
 | Matthias Caroux | Transactions : modèle, routes, interface de la liste et de l'ajout, Swagger |
+| Pierre Zhou | Infrastructure et qualité : Docker (API et front), gestion centralisée des erreurs (`AppError`), séparation des tests unitaires et fonctionnels, accessibilité et mise en page |
+| Romain Pereira | Documentation : réécriture du README (installation, lancement, routes de l'API, pages du front, architecture, choix techniques, limites connues) |
