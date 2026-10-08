@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import TransactionModal from '../components/TransactionModal.jsx';
+import ExpensesByCategoryChart from '../components/ExpensesByCategoryChart.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import InfoMessage from '../components/InfoMessage.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -8,6 +9,9 @@ import { usePageTitle } from '../hooks/usePageTitle.js';
 import { createTransaction, listTransactions } from '../api/transactions.js';
 import { formatCents } from '../utils/money.js';
 import { formatDate } from '../utils/dates.js';
+import { CATEGORIES, categoryColor, categoryLabel } from '../utils/categories.js';
+
+const NO_FILTERS = { type: '', category: '', from: '', to: '' };
 
 // Revenus, dépenses et solde, calculés en centimes entiers (pas d'erreur d'arrondi)
 function computeTotals(transactions) {
@@ -29,6 +33,13 @@ export default function Transaction() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    // Filtres appliqués par l'API (GET /api/transactions?type=…&category=…&from=…&to=…)
+    const [filters, setFilters] = useState(NO_FILTERS);
+    const hasFilters = Object.values(filters).some(Boolean);
+    // Vérifié avant l'appel : l'API refuserait from > to avec un 400
+    const filterError = filters.from && filters.to && filters.from > filters.to
+        ? 'La date de début doit être antérieure ou égale à la date de fin.'
+        : '';
     // Message de confirmation transmis par une autre page (ex : après une suppression)
     const [notice, setNotice] = useState(location.state?.notice ?? '');
 
@@ -38,8 +49,9 @@ export default function Transaction() {
     // Charger la liste au premier affichage de la page (et à chaque « Réessayer »).
     // L'état n'est modifié qu'à la réponse de l'API, et ignoré si la page a changé entre-temps
     useEffect(() => {
+        if (filterError) return undefined;
         let isCurrent = true;
-        listTransactions(token)
+        listTransactions(token, filters)
             .then((items) => {
                 if (!isCurrent) return;
                 setTransactions(items);
@@ -53,12 +65,25 @@ export default function Transaction() {
                 if (isCurrent) setIsLoading(false);
             });
         return () => { isCurrent = false; };
-    }, [token, reloadCount]);
+    }, [token, filters, filterError, reloadCount]);
 
     const reloadTransactions = () => {
         setIsLoading(true);
         setError('');
         setReloadCount((count) => count + 1);
+    };
+
+    const updateFilter = (name, value) => {
+        const next = { ...filters, [name]: value };
+        setFilters(next);
+        setNotice('');
+        // Pas de chargement si les dates sont incohérentes : la requête n'est pas envoyée
+        setIsLoading(!(next.from && next.to && next.from > next.to));
+    };
+
+    const resetFilters = () => {
+        setFilters(NO_FILTERS);
+        setIsLoading(true);
     };
 
     // Le message de confirmation ne doit pas réapparaître si on recharge la page
@@ -69,10 +94,15 @@ export default function Transaction() {
     // Appelée par le modal : si elle lance une erreur, le modal l'affiche
     const handleCreate = async (newTransaction) => {
         const created = await createTransaction(token, newTransaction);
-        // Même tri que l'API : date la plus récente en haut
-        setTransactions((current) =>
-            [created, ...current].sort((a, b) => b.date.localeCompare(a.date))
-        );
+        if (hasFilters) {
+            // La nouvelle transaction ne correspond peut-être pas aux filtres : on redemande la liste à l'API
+            setReloadCount((count) => count + 1);
+        } else {
+            // Même tri que l'API : date la plus récente en haut
+            setTransactions((current) =>
+                [created, ...current].sort((a, b) => b.date.localeCompare(a.date))
+            );
+        }
         setIsModalOpen(false);
         setNotice(`« ${created.label} » a été ajoutée.`);
     };
@@ -90,7 +120,42 @@ export default function Transaction() {
 
             <InfoMessage message={notice} />
 
-            {!isLoading && !error && transactions.length > 0 && (
+            <form className="filters" aria-label="Filtrer les transactions" onSubmit={(e) => e.preventDefault()}>
+                <div className="field">
+                    <label htmlFor="filter-type">Type</label>
+                    <select id="filter-type" value={filters.type} onChange={(e) => updateFilter('type', e.target.value)}>
+                        <option value="">Tous</option>
+                        <option value="expense">Dépenses</option>
+                        <option value="income">Revenus</option>
+                    </select>
+                </div>
+                <div className="field">
+                    <label htmlFor="filter-category">Catégorie</label>
+                    <select id="filter-category" value={filters.category} onChange={(e) => updateFilter('category', e.target.value)}>
+                        <option value="">Toutes</option>
+                        {CATEGORIES.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="field">
+                    <label htmlFor="filter-from">Du</label>
+                    <input id="filter-from" type="date" value={filters.from} max={filters.to || undefined}
+                        onChange={(e) => updateFilter('from', e.target.value)} aria-invalid={Boolean(filterError)} />
+                </div>
+                <div className="field">
+                    <label htmlFor="filter-to">Au</label>
+                    <input id="filter-to" type="date" value={filters.to} min={filters.from || undefined}
+                        onChange={(e) => updateFilter('to', e.target.value)} aria-invalid={Boolean(filterError)} />
+                </div>
+                {hasFilters && (
+                    <button type="button" className="button button-secondary" onClick={resetFilters}>
+                        Réinitialiser
+                    </button>
+                )}
+            </form>
+
+            {!isLoading && !error && !filterError && transactions.length > 0 && (
                 <section className="summary" aria-label="Résumé">
                     <div className="summary-card">
                         <span className="summary-label">Revenus</span>
@@ -109,12 +174,21 @@ export default function Transaction() {
                 </section>
             )}
 
-            {isLoading ? (
+            {!isLoading && !error && !filterError && <ExpensesByCategoryChart transactions={transactions} />}
+
+            {filterError ? (
+                <ErrorMessage message={filterError} />
+            ) : isLoading ? (
                 <p className="empty-state" aria-live="polite">Chargement de vos transactions…</p>
             ) : error ? (
                 <div className="error-state">
                     <ErrorMessage message={error} />
                     <button className="button button-secondary" onClick={reloadTransactions}>Réessayer</button>
+                </div>
+            ) : transactions.length === 0 && hasFilters ? (
+                <div className="empty-state">
+                    <p><strong>Aucune transaction ne correspond à ces filtres.</strong></p>
+                    <button className="button button-secondary" onClick={resetFilters}>Réinitialiser les filtres</button>
                 </div>
             ) : transactions.length === 0 ? (
                 <div className="empty-state">
@@ -131,6 +205,7 @@ export default function Transaction() {
                             <tr>
                                 <th scope="col">Date</th>
                                 <th scope="col">Libellé</th>
+                                <th scope="col">Catégorie</th>
                                 <th scope="col">Description</th>
                                 <th scope="col">Type</th>
                                 <th scope="col" className="amount">Montant</th>
@@ -145,6 +220,10 @@ export default function Transaction() {
                                         <Link to={`/transactions/${transaction.id}`} className="row-link">
                                             {transaction.label}
                                         </Link>
+                                    </td>
+                                    <td>
+                                        <span className="category-dot" style={{ background: categoryColor(transaction.category) }} aria-hidden="true" />
+                                        {categoryLabel(transaction.category)}
                                     </td>
                                     <td className="muted">{transaction.description || '—'}</td>
                                     <td>

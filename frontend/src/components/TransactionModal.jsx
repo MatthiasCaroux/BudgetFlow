@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import ErrorMessage from './ErrorMessage.jsx';
 import { centsToEuroInput, eurosToCents } from '../utils/money.js';
 import { todayIso } from '../utils/dates.js';
+import { CATEGORIES } from '../utils/categories.js';
 
 // Fenêtre de création ET de modification d'une transaction.
 // - sans `transaction` : création, onSubmit reçoit l'objet complet
@@ -12,6 +13,7 @@ export default function TransactionModal({ transaction, onClose, onSubmit }) {
   const [description, setDescription] = useState(transaction?.description ?? '');
   const [type, setType] = useState(transaction?.type ?? 'expense');
   const [amount, setAmount] = useState(transaction ? centsToEuroInput(transaction.amount) : '');
+  const [category, setCategory] = useState(transaction?.category ?? 'other');
   const [date, setDate] = useState(transaction?.date ?? todayIso());
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
@@ -48,7 +50,7 @@ export default function TransactionModal({ transaction, onClose, onSubmit }) {
     const amountInCents = eurosToCents(amount);
     if (!validate(amountInCents)) return;
 
-    const values = { label: label.trim(), description: description.trim(), type, amount: amountInCents, date };
+    const values = { label: label.trim(), description: description.trim(), type, category, amount: amountInCents, date };
     let payload = values;
     if (isEdit) {
       payload = Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== (transaction[key] ?? '')));
@@ -152,6 +154,20 @@ export default function TransactionModal({ transaction, onClose, onSubmit }) {
               />
               {fieldErrors.date && <p id="transaction-date-error" className="field-error">{fieldErrors.date}</p>}
             </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="transaction-category">Catégorie</label>
+            <select
+              id="transaction-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              disabled={isSubmitting}
+            >
+              {CATEGORIES.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
 
           <div className="field">

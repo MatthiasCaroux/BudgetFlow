@@ -2,8 +2,11 @@ import { apiRequest } from './client.js';
 
 // Toutes les routes exigent le token : un 401 déclenche la déconnexion automatique (client.js)
 
-export async function listTransactions(token) {
-    const { items } = await apiRequest('/api/transactions', { token });
+// filters : { type, category, from, to } ; les valeurs vides sont ignorées
+export async function listTransactions(token, filters = {}) {
+    const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value));
+    const query = params.size > 0 ? `?${params}` : '';
+    const { items } = await apiRequest(`/api/transactions${query}`, { token });
     return items;
 }
 

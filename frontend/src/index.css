@@ -915,3 +915,71 @@ button:focus-visible {
   font-weight: 400;
   color: var(--color-muted);
 }
+
+/* ---------- Bonus : filtres et graphique ---------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.filters .field {
+  flex: 1 1 9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.filters select,
+.filters input,
+.auth-form select {
+  padding: 0.5625rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font: inherit;
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+.filters select:focus,
+.filters input:focus,
+.auth-form select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(30 58 95 / 0.18);
+}
+
+.filters input[aria-invalid='true'] {
+  border-color: var(--color-error);
+}
+
+.chart-card {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
+}
+
+.chart-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--color-primary);
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+}
+
+.category-dot {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  vertical-align: 0.05em;
+}

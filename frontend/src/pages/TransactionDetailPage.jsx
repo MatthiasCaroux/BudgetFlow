@@ -8,6 +8,7 @@ import { usePageTitle } from '../hooks/usePageTitle.js';
 import { deleteTransaction, getTransaction, updateTransaction } from '../api/transactions.js';
 import { formatCents } from '../utils/money.js';
 import { formatLongDate } from '../utils/dates.js';
+import { categoryLabel } from '../utils/categories.js';
 
 export default function TransactionDetailPage() {
     const { id } = useParams();
@@ -121,6 +122,10 @@ export default function TransactionDetailPage() {
                     <div>
                         <dt>Date</dt>
                         <dd>{formatLongDate(transaction.date)}</dd>
+                    </div>
+                    <div>
+                        <dt>Catégorie</dt>
+                        <dd>{categoryLabel(transaction.category)}</dd>
                     </div>
                     <div>
                         <dt>Description</dt>
