@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import TransactionModal from '../components/TransactionModal.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
@@ -24,21 +24,32 @@ export default function TransactionDetailPage() {
     const cancelDeleteRef = useRef(null);
     usePageTitle(transaction?.label ?? 'Transaction');
 
-    const loadTransaction = useCallback(async () => {
+    // Incrémenté par « Réessayer » pour relancer le chargement
+    const [reloadCount, setReloadCount] = useState(0);
+
+    // L'état n'est modifié qu'à la réponse de l'API, et ignoré si on a changé de page entre-temps
+    useEffect(() => {
+        let isCurrent = true;
+        getTransaction(token, id)
+            .then((found) => {
+                if (!isCurrent) return;
+                setTransaction(found);
+                setLoadError(null);
+            })
+            .catch((err) => {
+                if (isCurrent && err.status !== 401) setLoadError(err);
+            })
+            .finally(() => {
+                if (isCurrent) setIsLoading(false);
+            });
+        return () => { isCurrent = false; };
+    }, [token, id, reloadCount]);
+
+    const reloadTransaction = () => {
         setIsLoading(true);
         setLoadError(null);
-        try {
-            setTransaction(await getTransaction(token, id));
-        } catch (err) {
-            if (err.status !== 401) setLoadError(err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [token, id]);
-
-    useEffect(() => {
-        loadTransaction();
-    }, [loadTransaction]);
+        setReloadCount((count) => count + 1);
+    };
 
     // Quand la confirmation s'ouvre, le focus va sur « Annuler » (le choix sans danger)
     useEffect(() => {
@@ -83,7 +94,7 @@ export default function TransactionDetailPage() {
                 <div className="empty-state">
                     <p><strong>{notFound ? 'Transaction introuvable' : 'Impossible de charger la transaction'}</strong></p>
                     <p>{notFound ? 'Elle a peut-être été supprimée, ou le lien est incorrect.' : loadError.message}</p>
-                    {!notFound && <button className="button button-secondary" onClick={loadTransaction}>Réessayer</button>}
+                    {!notFound && <button className="button button-secondary" onClick={reloadTransaction}>Réessayer</button>}
                 </div>
             </div>
         );

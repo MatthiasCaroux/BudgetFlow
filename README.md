@@ -1,23 +1,160 @@
 # BudgetFlow
 
-BudgetFlow est une petite application de suivi de budget : on crée un compte, on se connecte, puis on enregistre ses revenus et ses dépenses (fictifs). Chaque utilisateur ne voit que ses propres transactions. L'interface affiche aussi le total des revenus, des dépenses et le solde.
+BudgetFlow est une petite application de suivi de budget : on crée un compte, on se connecte, puis on enregistre ses revenus et ses dépenses (fictifs). Chaque utilisateur ne voit que ses propres transactions. L'interface affiche aussi le total des revenus, des dépenses et le solde. Aucun accès bancaire, aucune transaction réelle.
+
+Projet du module **Full Stack JS** (EFREI, Master 1), **sujet C – BudgetFlow**.
 
 ## Sommaire
 
-1. [Stack et versions](#1-stack-et-versions)
-2. [Prérequis](#2-prérequis)
-3. [Installation et fichier .env](#3-installation-et-fichier-env)
-4. [Lancer le projet](#4-lancer-le-projet)
-5. [Les routes de l'API](#5-les-routes-de-lapi)
-6. [Les pages du front](#6-les-pages-du-front)
-7. [Tests, lint et build](#7-tests-lint-et-build)
-8. [Architecture](#8-architecture)
-9. [Choix techniques](#9-choix-techniques)
-10. [Vite, Babel et Webpack](#10-vite-babel-et-webpack)
-11. [Les tests dans une CI](#11-les-tests-dans-une-ci)
-12. [Limites connues](#12-limites-connues)
+1. [Démo](#1-démo)
+2. [Fonctionnalités](#2-fonctionnalités)
+3. [Stack et versions](#3-stack-et-versions)
+4. [Prérequis](#4-prérequis)
+5. [Installation et fichier .env](#5-installation-et-fichier-env)
+6. [Lancer le projet](#6-lancer-le-projet)
+7. [Les routes de l'API](#7-les-routes-de-lapi)
+8. [Les pages du front](#8-les-pages-du-front)
+9. [Tests, lint et build](#9-tests-lint-et-build)
+10. [Architecture](#10-architecture)
+11. [Choix techniques](#11-choix-techniques)
+12. [Vite, Babel et Webpack](#12-vite-babel-et-webpack)
+13. [Les tests dans une CI](#13-les-tests-dans-une-ci)
+14. [Limites connues](#14-limites-connues)
+15. [Équipe](#15-équipe)
 
-## 1. Stack et versions
+## 1. Démo
+
+Toutes les commandes sont à lancer **depuis la racine du projet**, dans l'ordre.
+
+### 1. Préparer (une seule fois)
+
+```bash
+npm install                              # dépendances du front et du back
+cp backend/.env.example backend/.env     # fichier de configuration de l'API
+openssl rand -hex 32                     # copier le résultat dans JWT_SECRET (backend/.env)
+```
+
+### 2. Vérifier la qualité
+
+```bash
+npm run lint                             # ESLint : aucune erreur attendue
+npm test                                 # les 135 tests Jest + Supertest
+npm run build                            # build de production du front
+git log -1 --format=%H                   # SHA du commit présenté
+```
+
+### 3. Lancer l'application
+
+```bash
+docker compose up -d mongo               # MongoDB sur le port 27017
+npm run dev                              # API (port 3000) + front (port 5173)
+```
+
+Dans un **second terminal** :
+
+```bash
+curl http://localhost:3000/api/health    # doit répondre {"status":"ok"}
+```
+
+| À ouvrir | Adresse |
+|---|---|
+| Application | http://localhost:5173 |
+| Documentation Swagger | http://localhost:3000/api-docs |
+
+### 4. Démonstration dans le navigateur
+
+1. **Inscription** du compte A, puis déconnexion et **connexion**.
+2. **Ajout** d'un revenu et d'une dépense : les montants s'affichent en euros (`12345` centimes → `123,45 €`) et le solde se met à jour.
+3. **Détail** d'une transaction, **modification**, puis **suppression** avec confirmation.
+4. Saisie invalide (libellé vide, montant à 0) : message d'erreur lisible.
+5. **Compte B** dans une fenêtre de navigation privée : sa liste est vide, il ne voit rien du compte A.
+6. **Persistance** : arrêter `npm run dev` (Ctrl+C), le relancer, recharger la page : les transactions sont toujours là.
+
+### 5. Démonstration de l'API (sécurité et contrat)
+
+À coller dans le second terminal, bloc par bloc. Les emails contiennent l'heure pour pouvoir relancer la démo sans conflit.
+
+```bash
+API=http://localhost:3000/api
+N=$(date +%s)
+
+# Inscription des comptes A et B (201) : on récupère leur JWT
+TOKEN_A=$(curl -s -X POST $API/auth/register -H 'Content-Type: application/json' \
+  -d "{\"email\":\"a$N@example.test\",\"password\":\"MotDePasse123!\"}" | sed -E 's/.*"token":"([^"]+)".*/\1/')
+TOKEN_B=$(curl -s -X POST $API/auth/register -H 'Content-Type: application/json' \
+  -d "{\"email\":\"b$N@example.test\",\"password\":\"MotDePasse123!\"}" | sed -E 's/.*"token":"([^"]+)".*/\1/')
+
+# A crée une transaction (201) et on garde son id
+ID=$(curl -s -X POST $API/transactions -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' \
+  -d '{"label":"Courses","amount":12345,"type":"expense","date":"2026-10-05"}' | sed -E 's/.*"id":"([^"]+)".*/\1/')
+echo "Transaction de A : $ID"
+```
+
+```bash
+# A liste ses transactions (200, enveloppe {"items":[...]})
+curl -s $API/transactions -H "Authorization: Bearer $TOKEN_A"; echo
+
+# B ne voit rien (200, {"items":[]}) et reçoit 404 sur la transaction de A
+curl -s $API/transactions -H "Authorization: Bearer $TOKEN_B"; echo
+curl -s -w ' → %{http_code}\n' $API/transactions/$ID -H "Authorization: Bearer $TOKEN_B"
+curl -s -w ' → %{http_code}\n' -X PATCH $API/transactions/$ID -H "Authorization: Bearer $TOKEN_B" \
+  -H 'Content-Type: application/json' -d '{"label":"Piraté"}'
+curl -s -w ' → %{http_code}\n' -X DELETE $API/transactions/$ID -H "Authorization: Bearer $TOKEN_B"
+
+# Sans JWT ou avec un JWT falsifié : 401
+curl -s -w ' → %{http_code}\n' $API/transactions
+curl -s -w ' → %{http_code}\n' $API/transactions -H 'Authorization: Bearer faux.jeton.jwt'
+
+# Entrées invalides : 400 (montant décimal, ownerId envoyé par le client, id mal formé)
+curl -s -w ' → %{http_code}\n' -X POST $API/transactions -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -d '{"label":"Courses","amount":12.34,"type":"expense","date":"2026-10-05"}'
+curl -s -w ' → %{http_code}\n' -X PATCH $API/transactions/$ID -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -d '{"ownerId":"507f1f77bcf86cd799439011"}'
+curl -s -w ' → %{http_code}\n' $API/transactions/pas-un-id -H "Authorization: Bearer $TOKEN_A"
+
+# A modifie (200), supprime (204), puis la transaction n'existe plus (404)
+curl -s -w ' → %{http_code}\n' -X PATCH $API/transactions/$ID -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -d '{"amount":5000}'
+curl -s -w ' → %{http_code}\n' -X DELETE $API/transactions/$ID -H "Authorization: Bearer $TOKEN_A"
+curl -s -w ' → %{http_code}\n' $API/transactions/$ID -H "Authorization: Bearer $TOKEN_A"
+
+# Email déjà utilisé (409) et mauvais mot de passe (401)
+curl -s -w ' → %{http_code}\n' -X POST $API/auth/register -H 'Content-Type: application/json' \
+  -d "{\"email\":\"a$N@example.test\",\"password\":\"MotDePasse123!\"}"
+curl -s -w ' → %{http_code}\n' -X POST $API/auth/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"a$N@example.test\",\"password\":\"mauvais-mdp\"}"
+```
+
+Les mêmes appels peuvent être faits depuis **Swagger** (http://localhost:3000/api-docs) : bouton **Authorize**, coller le token, puis **Try it out** sur une route.
+
+### 6. Montrer les tests et la couverture
+
+```bash
+npm test                                 # toute la suite : 135 tests Jest + Supertest
+npm run test:unitaires                   # tests unitaires : validateurs, dates, gestion des erreurs (sans base)
+npm run test:fonctionnels                # tests fonctionnels : appels HTTP sur l'API, dont l'isolation A/B
+npm run test:coverage                    # toute la suite + tableau de couverture du code (environ 98 %)
+```
+
+Le rapport de couverture s'affiche dans le terminal. Une version HTML détaillée, fichier par fichier, est générée dans `backend/coverage/lcov-report/index.html` (dossier ignoré par Git) : on peut l'ouvrir dans le navigateur pour montrer les lignes testées.
+
+Le test d'isolation est dans `backend/test/fonctionnels/isolation.test.js` : si on retire le filtre `ownerId` dans `backend/src/services/transactionService.js`, il échoue.
+
+### 7. Après la démo
+
+```bash
+docker compose down                      # arrête MongoDB (les données restent dans le volume)
+```
+
+## 2. Fonctionnalités
+
+- **Compte utilisateur** : inscription, connexion, déconnexion. Mot de passe haché avec bcrypt, session par JWT.
+- **Transactions** : lister, ajouter, consulter, modifier et supprimer ses transactions (libellé, montant, type revenu/dépense, date, description facultative).
+- **Résumé** : total des revenus, des dépenses et solde du compte.
+- **Données privées** : un utilisateur ne voit et ne modifie que ses propres transactions, y compris si quelqu'un appelle l'API directement sans passer par l'interface.
+- **Session sécurisée** : déconnexion automatique à l'expiration du token, redirection vers la connexion pour les pages privées, retour à la page demandée après connexion.
+
+## 3. Stack et versions
 
 Le projet est un monorepo avec des workspaces npm : `backend` et `frontend` partagent un seul `package-lock.json` à la racine.
 
@@ -33,14 +170,15 @@ Le projet est un monorepo avec des workspaces npm : `backend` et `frontend` part
 | Front | React / React DOM | 19.3 |
 | Front | React Router | 7.18 |
 | Front | Vite (+ @vitejs/plugin-react) | 7.3 (plugin 5.2) |
-| Tests | Jest + Supertest | 30.5 / 7.1 |
+| Tests | Jest + Supertest | 30.5 / 7.1 (couverture V8) |
 | Tests | mongodb-memory-server | 11.3 |
+| Qualité | ESLint (+ plugins React Hooks et React Refresh) | 9 |
 
 Les versions sont celles installées par `npm ci` avec le `package-lock.json` actuel.
 
 Pourquoi Node 20.19 minimum : c'est ce que demandent Mongoose 9, Vite 7 et mongodb-memory-server. Les images Docker utilisent Node 24.
 
-## 2. Prérequis
+## 4. Prérequis
 
 - Node.js 20.19 ou plus récent, avec npm (`node -v` pour vérifier)
 - Docker Desktop (ou Docker Engine + Compose), pour lancer MongoDB sans l'installer
@@ -48,7 +186,7 @@ Pourquoi Node 20.19 minimum : c'est ce que demandent Mongoose 9, Vite 7 et mongo
 
 Si vous n'avez pas Docker, un MongoDB installé en local marche aussi, il doit juste écouter sur `localhost:27017`.
 
-## 3. Installation et fichier .env
+## 5. Installation et fichier .env
 
 ```bash
 git clone https://github.com/MatthiasCaroux/BudgetFlow.git
@@ -86,7 +224,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 Le fichier `.env` est dans le `.gitignore`, il ne doit jamais être commité. Si `JWT_SECRET` ou `MONGO_URI` manque, l'API refuse de démarrer et affiche un message dans le terminal.
 
-## 4. Lancer le projet
+## 6. Lancer le projet
 
 ### Mode développement (celui qu'on utilise au quotidien)
 
@@ -141,7 +279,7 @@ nginx sert les fichiers du build React et transmet les requêtes `/api` au conte
 
 Pour tout arrêter : `docker compose down`.
 
-## 5. Les routes de l'API
+## 7. Les routes de l'API
 
 Toutes les réponses sont en JSON. Les routes `/api/transactions` demandent un token dans l'en-tête :
 
@@ -271,7 +409,7 @@ curl http://localhost:3000/api/transactions -H "Authorization: Bearer $TOKEN"
 
 Sous Windows, le plus simple est d'utiliser Swagger (`/api-docs`) ou Git Bash.
 
-## 6. Les pages du front
+## 8. Les pages du front
 
 | URL | Page | Accès |
 | --- | --- | --- |
@@ -286,7 +424,7 @@ Si on ouvre une page protégée sans être connecté, on est redirigé vers `/lo
 
 Les montants sont saisis en euros (`123,45` ou `123.45`) et convertis en centimes avant l'envoi. L'affichage repasse en euros au format français (`123,45 €`).
 
-## 7. Tests, lint et build
+## 9. Tests, lint et build
 
 Toutes les commandes se lancent depuis la racine du projet.
 
@@ -294,16 +432,19 @@ Toutes les commandes se lancent depuis la racine du projet.
 
 ```bash
 npm test                  # tous les tests
-npm run test:unit         # tests unitaires seulement
-npm run test:functional   # tests fonctionnels seulement
+npm run test:unitaires    # tests unitaires seulement
+npm run test:fonctionnels # tests fonctionnels seulement
+npm run test:coverage     # tous les tests + taux de couverture du code de backend/src (environ 98 %)
 ```
 
-- Les tests unitaires (`backend/test/unit`) testent des fonctions seules, sans base de données : validation des transactions et des emails / mots de passe, vérification des dates, `AppError`, middleware d'erreurs.
-- Les tests fonctionnels (`backend/test/functional`) envoient de vraies requêtes HTTP à l'API avec Supertest : inscription et connexion, CRUD des transactions, montants et dates invalides, et isolation entre deux comptes (le compte B reçoit 404 sur les transactions du compte A).
+- Les tests unitaires (`backend/test/unitaires`) testent des fonctions seules, sans base de données : validation des transactions et des emails / mots de passe, vérification des dates, `AppError`, middleware d'erreurs.
+- Les tests fonctionnels (`backend/test/fonctionnels`) envoient de vraies requêtes HTTP à l'API avec Supertest : inscription et connexion, CRUD des transactions, montants et dates invalides, et isolation entre deux comptes (le compte B reçoit 404 sur les transactions du compte A).
 
 Les tests fonctionnels utilisent une base MongoDB en mémoire (mongodb-memory-server), donc ils ne touchent pas à la base de dev et Docker n'a pas besoin d'être lancé. Par contre, au premier lancement, la librairie télécharge le binaire MongoDB (environ 140 Mo) : il faut une connexion internet et ça peut prendre une minute.
 
-Le secret JWT utilisé pendant les tests est défini dans `backend/test/helpers/env.js`, ce n'est jamais celui du `.env`.
+Le rapport de couverture s'affiche dans le terminal. Une version HTML détaillée, fichier par fichier, est générée dans `backend/coverage/lcov-report/index.html` (dossier ignoré par Git).
+
+Le secret JWT utilisé pendant les tests est défini dans `backend/test/outils/env.js`, ce n'est jamais celui du `.env`.
 
 ### Lint
 
@@ -311,7 +452,14 @@ Le secret JWT utilisé pendant les tests est défini dans `backend/test/helpers/
 npm run lint
 ```
 
-Lance ESLint sur le back et sur le front.
+Analyse tout le code (back, tests et front) avec ESLint, sans l'exécuter : variables non déclarées ou inutilisées, règles des hooks React… La configuration unique est à la racine, dans `eslint.config.js`, avec un bloc par environnement (Node pour le back, Node + Jest pour les tests, navigateur + JSX pour le front). On peut aussi n'analyser qu'une partie avec `npm run lint --workspace backend` ou `--workspace frontend`, et corriger automatiquement ce qui peut l'être avec `npx eslint . --fix`.
+
+**Ce que la configuration ESLint ne couvre pas :**
+
+- **Pas de `eslint-plugin-react`.** ESLint seul ne sait pas qu'un composant utilisé en JSX (`<Link />`) est utilisé. Dans le front, les variables inutilisées dont le nom commence par une majuscule sont donc ignorées (comme dans le modèle officiel de Vite) : un composant importé mais jamais affiché n'est pas signalé. Les règles propres à React (props, `key` dans les listes…) ne sont pas vérifiées non plus.
+- **Pas de règles de style ni de formatage** (indentation, guillemets, points-virgules) : seules les règles recommandées, qui visent les erreurs probables, sont actives. Aucun formateur comme Prettier n'est configuré.
+- **Une règle désactivée sur une ligne** : `react-refresh/only-export-components` pour le hook `useAuth`, exporté dans le même fichier que `AuthProvider` (`frontend/src/context/AuthContext.jsx`). Conséquence limitée au développement : modifier ce fichier recharge toute la page au lieu d'un rechargement à chaud.
+- **Pas d'exécution automatique** : le lint n'est lancé ni avant chaque commit (pas de hook Git), ni par une chaîne d'intégration continue. Il faut lancer `npm run lint` soi-même.
 
 ### Build du front
 
@@ -333,7 +481,7 @@ Le back n'a pas d'étape de build : Node exécute directement les fichiers de `b
 npm start
 ```
 
-## 8. Architecture
+## 10. Architecture
 
 ```
 BudgetFlow/
@@ -351,9 +499,9 @@ BudgetFlow/
 │   │   ├── errors/              AppError et raccourcis (invalidInput, notFound...)
 │   │   └── utils/               vérification des dates
 │   ├── test/
-│   │   ├── unit/
-│   │   ├── functional/
-│   │   └── helpers/             base en mémoire, création d'un utilisateur de test
+│   │   ├── unitaires/
+│   │   ├── fonctionnels/
+│   │   └── outils/              base en mémoire, création d'un utilisateur de test
 │   ├── Dockerfile
 │   └── .env.example
 ├── frontend/
@@ -394,7 +542,7 @@ On a séparé controllers, validators et services pour que chaque fichier ait un
 
 Tous les appels passent par `frontend/src/api/client.js`. Il ajoute l'en-tête `Authorization`, lit le JSON, et transforme les erreurs de l'API en `ApiError` avec `status`, `code` et `message`, que les pages affichent. Si l'API répond 401 alors qu'on avait envoyé un token, le client prévient `AuthContext`, qui déconnecte l'utilisateur.
 
-## 9. Choix techniques
+## 11. Choix techniques
 
 ### Montants en centimes
 
@@ -436,7 +584,7 @@ Un seul middleware (`errorHandler.js`) construit toutes les réponses d'erreur. 
 
 Le `toJSON` du modèle Transaction transforme `_id` en `id` (texte) et retire `__v`, pour respecter le contrat de l'API.
 
-## 10. Vite, Babel et Webpack
+## 12. Vite, Babel et Webpack
 
 **Vite** est l'outil qu'on utilise pour le front. Il a deux rôles :
 - en dev (`npm run dev`), il sert les fichiers presque tels quels au navigateur, qui sait lire les modules ES (`import`/`export`). Il ne transforme que le fichier demandé, donc le démarrage est quasi instantané. Avec le plugin React, les modifications apparaissent sans recharger la page (Fast Refresh). Il fait aussi le proxy `/api` vers l'API ;
@@ -446,7 +594,7 @@ Le `toJSON` du modèle Transaction transforme `_id` en `id` (texte) et retire `_
 
 **Webpack** est un bundler plus ancien, qu'on retrouve dans beaucoup de projets existants (Create React App par exemple). Il fait le même travail de fond que Vite (regrouper les modules, gérer le CSS et les images, produire un build), mais il construit tout le bundle avant de démarrer, même en dev, et demande plus de configuration. On ne l'utilise pas dans ce projet : Vite démarre plus vite, se configure en quelques lignes, et c'est l'outil recommandé aujourd'hui pour un nouveau projet React.
 
-## 11. Les tests dans une CI
+## 13. Les tests dans une CI
 
 Une CI (intégration continue) est un serveur qui relance automatiquement les vérifications à chaque push ou Pull Request. Dans notre projet, une PR ne devrait être fusionnée dans `develop` que si tout passe.
 
@@ -454,8 +602,8 @@ L'ordre logique :
 
 1. `npm ci` : installation exacte à partir du `package-lock.json` ;
 2. `npm run lint` : erreurs de style et bugs simples, très rapide ;
-3. `npm run test:unit` : rapides, sans base de données ;
-4. `npm run test:functional` : plus lents, avec la base en mémoire ;
+3. `npm run test:unitaires` : rapides, sans base de données ;
+4. `npm run test:fonctionnels` : plus lents, avec la base en mémoire ;
 5. `npm run build` : vérifie que le front compile.
 
 Si une étape échoue, la CI s'arrête et la PR est marquée en rouge. C'est comme ça qu'un test détecte une régression : si quelqu'un casse par exemple le filtre `ownerId`, le test d'isolation échoue avant que le code n'arrive dans `develop`.
@@ -476,18 +624,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
-      - run: npm run test:unit
-      - run: npm run test:functional
+      - run: npm run test:unitaires
+      - run: npm run test:fonctionnels
       - run: npm run build
 ```
 
 Pas besoin de service MongoDB dans la CI, puisque les tests fonctionnels utilisent la base en mémoire.
 
-## 12. Limites connues
+## 14. Limites connues
 
 - Pas de refresh token : au bout d'une heure il faut se reconnecter.
 - La déconnexion se fait seulement côté navigateur. Un token copié avant la déconnexion reste valable jusqu'à son expiration (il n'y a pas de liste de tokens révoqués).
-- Le token est dans `localStorage`, donc lisible en cas de faille XSS (voir la partie 9).
+- Le token est dans `localStorage`, donc lisible en cas de faille XSS (voir la partie 11).
 - Pas de limite du nombre de tentatives de connexion : un mot de passe peut être testé en boucle.
 - Pas de pagination : `GET /api/transactions` renvoie toutes les transactions d'un coup.
 - Le seul filtre de la liste est `type`. Pas de filtre par date ni de catégories.
@@ -495,3 +643,10 @@ Pas besoin de service MongoDB dans la CI, puisque les tests fonctionnels utilise
 - Pas de tests automatisés côté front, seulement des tests manuels dans le navigateur.
 - Pas de modification ni de suppression du compte utilisateur.
 - Une seule devise (€)
+
+## 15. Équipe
+
+| Membre | Contribution principale |
+|---|---|
+| Nabila | Comptes et sécurité : inscription, connexion, JWT, protection des routes, session côté React, tests d'authentification et d'isolation |
+| Matthias Caroux | Transactions : modèle, routes, interface de la liste et de l'ajout, Swagger |
