@@ -651,4 +651,4 @@ Pas besoin de service MongoDB dans la CI, puisque les tests fonctionnels utilise
 | Nabila | Comptes et sécurité : inscription, connexion, JWT, protection des routes, session côté React, tests d'authentification et d'isolation |
 | Matthias Caroux | Transactions : modèle, routes, interface de la liste et de l'ajout, Swagger |
 | Pierre Zhou | Infrastructure et qualité : Docker (API et front), gestion centralisée des erreurs (`AppError`), séparation des tests unitaires et fonctionnels, accessibilité et mise en page |
-| Romain Pereira | Documentation : réécriture du README (installation, lancement, routes de l'API, pages du front, architecture, choix techniques, limites connues) |
+| Romain | Documentation technique : contrat de l'API, flux JWT, architecture en couches, choix techniques, procédures d'installation et de test (README.md) |
